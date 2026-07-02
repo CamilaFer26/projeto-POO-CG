@@ -6,8 +6,9 @@ extern "C" {
 JNIEXPORT void JNICALL
 Java_main_MotorGrafico_init(
     JNIEnv* env,
-    jobject obj
-){
+    jobject obj,
+    jobject canvas)
+{
     std::cout << "Motor iniciado" << std::endl;
 }
 
