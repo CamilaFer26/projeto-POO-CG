@@ -1,6 +1,8 @@
-package main;
+package view;
 
 import javax.swing.SwingUtilities;
+
+import graphics.MotorGrafico;
 
 public class Main {
 
