@@ -8,7 +8,7 @@ public class MotorGrafico {
 	}
 	public native void init(Canvas canvas);
 	
-	public native void update(float tx, float ty, float angle);
+	public native void update(float a, float b, float c, float d);
 	
 	public native void cleanup();
 }
