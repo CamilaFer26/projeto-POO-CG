@@ -33,6 +33,12 @@ float aspectY = 1.0f;
 // Figura (o quadrado), definida em unidades CARTESIANAS (nao em pixels/clip space)
 GLuint squareVAO = 0, squareVBO = 0;
 
+// Figura (o triângulo), definida em unidades CARTESIANAS
+GLuint triangleVAO = 0, triangleVBO = 0;
+
+// Figura (o retângulo), definida em unidades CARTESIANAS
+GLuint rectangleVAO = 0, rectangleVBO = 0;
+
 // Grade do plano (linhas de -5 a 5)
 GLuint gridVAO = 0, gridVBO = 0;
 int gridVertexCount = 0;
@@ -130,6 +136,53 @@ void setupSquare() {
     glBindBuffer(GL_ARRAY_BUFFER, squareVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void setupTriangle() {
+    // Triângulo escaleno: totalmente assimétrico para evidenciar qualquer transformação
+    float vertices[] = {
+        -1.5f, -1.0f, // Vértice 1: Canto inferior esquerdo
+         2.0f, -0.5f, // Vértice 2: Canto inferior direito (mais esticado no X)
+         0.5f,  1.5f  // Vértice 3: Topo (deslocado do centro)
+    };
+
+    glGenVertexArrays(1, &triangleVAO);
+    glGenBuffers(1, &triangleVBO);
+
+    glBindVertexArray(triangleVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, triangleVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void setupRectangle() {
+    // Vértices do retângulo (largura 3.0, altura 1.5).
+    // Posicionado no 1º quadrante, fora do centro, para evidenciar transformações.
+    float vertices[] = {
+         0.5f,  0.5f, // Vértice 1: Canto inferior esquerdo
+         3.5f,  0.5f, // Vértice 2: Canto inferior direito
+         3.5f,  2.0f, // Vértice 3: Canto superior direito
+         0.5f,  2.0f  // Vértice 4: Canto superior esquerdo
+    };
+
+    glGenVertexArrays(1, &rectangleVAO);
+    glGenBuffers(1, &rectangleVBO);
+
+    glBindVertexArray(rectangleVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, rectangleVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Mapeia as posições (x, y) para o layout 0 do vertex shader
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
@@ -300,6 +353,8 @@ void setupNumbers() {
 void setupGraphics() {
     setupShader();
     setupSquare();
+    setupTriangle();
+    setupRectangle();
     setupGrid();
     setupAxis();
     setupNumbers();
@@ -338,17 +393,65 @@ void renderScene() {
         0.0f, 0.0f, 1.0f
     };
 
+    /*
     glUniformMatrix3fv(uniformTransformLoc, 1, GL_FALSE, transform);
+
     glBindVertexArray(squareVAO);
 
+
+
     glUniform4f(uniformColorLoc, 0.3f, 0.6f, 0.9f, 0.35f);
+
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
+
+
     glUniform4f(uniformColorLoc, 0.6f, 0.85f, 1.0f, 1.0f);
+
     glDrawArrays(GL_LINE_LOOP, 0, 4);
+
+
+
+    // Antes: glfwSwapBuffers(window) + glfwPollEvents()
+
+    // Agora o contexto e o HDC do Canvas Java, entao usamos a API do Windows direto
+
+    SwapBuffers(hdc);
+    */
+
+    /*
+    glUniformMatrix3fv(uniformTransformLoc, 1, GL_FALSE, transform);
+
+    // Vincula o VAO do triângulo
+    glBindVertexArray(triangleVAO);
+
+    // Desenha o preenchimento do triângulo
+    glUniform4f(uniformColorLoc, 0.3f, 0.6f, 0.9f, 0.35f);
+    glDrawArrays(GL_TRIANGLES, 0, 3); // Desenha 3 vértices ao invés de 4
+
+    // Desenha o contorno do triângulo
+    glUniform4f(uniformColorLoc, 0.6f, 0.85f, 1.0f, 1.0f);
+    glDrawArrays(GL_LINE_LOOP, 0, 3); // Desenha 3 vértices ao invés de 4
 
     // Antes: glfwSwapBuffers(window) + glfwPollEvents()
     // Agora o contexto e o HDC do Canvas Java, entao usamos a API do Windows direto
+    SwapBuffers(hdc);
+    */
+
+    glUniformMatrix3fv(uniformTransformLoc, 1, GL_FALSE, transform);
+
+    // Vincula o VAO do retângulo
+    glBindVertexArray(rectangleVAO);
+
+    // Desenha o preenchimento do retângulo
+    glUniform4f(uniformColorLoc, 0.3f, 0.6f, 0.9f, 0.35f);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4); // 4 vértices
+
+    // Desenha o contorno do retângulo
+    glUniform4f(uniformColorLoc, 0.6f, 0.85f, 1.0f, 1.0f);
+    glDrawArrays(GL_LINE_LOOP, 0, 4); // 4 vértices
+
+    // Troca de buffers no canvas do JavaFX
     SwapBuffers(hdc);
 }
 
@@ -462,6 +565,12 @@ JNIEXPORT void JNICALL Java_graphics_MotorGrafico_cleanup(JNIEnv*, jobject) {
 
     if (squareVAO != 0) { glDeleteVertexArrays(1, &squareVAO); squareVAO = 0; }
     if (squareVBO != 0) { glDeleteBuffers(1, &squareVBO); squareVBO = 0; }
+
+    if (triangleVAO != 0) { glDeleteVertexArrays(1, &triangleVAO); triangleVAO = 0; }
+    if (triangleVBO != 0) { glDeleteBuffers(1, &triangleVBO); triangleVBO = 0; }
+
+    if (rectangleVAO != 0) { glDeleteVertexArrays(1, &rectangleVAO); rectangleVAO = 0; }
+    if (rectangleVBO != 0) { glDeleteBuffers(1, &rectangleVBO); rectangleVBO = 0; }
 
     if (gridVAO != 0) { glDeleteVertexArrays(1, &gridVAO); gridVAO = 0; }
     if (gridVBO != 0) { glDeleteBuffers(1, &gridVBO); gridVBO = 0; }
