@@ -1,8 +1,6 @@
 package view;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import javax.swing.table.DefaultTableCellRenderer;
 
 import graphics.MotorGrafico;
@@ -80,7 +78,10 @@ public class TransformUI extends JFrame{
 		formas.setBounds(11, 80, 179, 22);
 		panel.add(formas);
 		formas.addActionListener(e -> {
-		    motor.shape(formas.getSelectedIndex());
+			int index = formas.getSelectedIndex();
+			if (index > 0) {
+				motor.shape(index - 1);
+			}
 		});
 		
 		// Lista de transformações lineares básicas

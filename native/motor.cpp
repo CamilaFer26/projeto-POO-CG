@@ -32,6 +32,13 @@ float aspectY = 1.0f;
 
 // Figura (o quadrado), definida em unidades CARTESIANAS (nao em pixels/clip space)
 GLuint squareVAO = 0, squareVBO = 0;
+int squareVertexCount = 4;
+
+// shape() pode ser chamada de outra thread (glThread fica bloqueada dentro de init(),
+// rodando o render loop), entao nao da pra chamar GL direto ali.
+// Usamos o mesmo padrao de "estado pendente" que ja existe em update()/matA..matD
+volatile int pendingShape = 0;
+volatile bool shapeChanged = false;
 
 // Grade do plano (linhas de -5 a 5)
 GLuint gridVAO = 0, gridVBO = 0;
@@ -115,26 +122,45 @@ void setupShader() {
 
 }
 
-void setupSquare() {
-    float vertices[] = {
-        -1.0f, -1.0f,
-         1.0f, -1.0f,
-         1.0f,  1.0f,
-        -1.0f,  1.0f
-    };
+void updateShapeBuffer(int shape) {
+    std::vector<float> vertices;
 
+    switch (shape) {
+        case 1: // triangulo
+            vertices = { 0.0f, 1.0f,  -1.0f, -1.0f,  1.0f, -1.0f };
+            break;
+        case 2: // retangulo
+            vertices = { -1.0f, -0.5f,  1.0f, -0.5f,  1.0f, 0.5f,  -1.0f, 0.5f };
+            break;
+        case 0:
+        default: // quadrado
+            vertices = { -1.0f, -1.0f,  1.0f, -1.0f,  1.0f, 1.0f,  -1.0f, 1.0f };
+            break;
+    }
+
+    squareVertexCount = (int)(vertices.size() / 2);
+
+    glBindVertexArray(squareVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, squareVBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void setupSquare() {
     glGenVertexArrays(1, &squareVAO);
     glGenBuffers(1, &squareVBO);
 
     glBindVertexArray(squareVAO);
     glBindBuffer(GL_ARRAY_BUFFER, squareVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+    updateShapeBuffer(0); // comeca como quadrado, igual ao comportamento original
 }
 
 void setupGrid() {
@@ -310,8 +336,12 @@ const float IDENTITY_MATRIX[] = {
     0.0f, 1.0f, 0.0f,
     0.0f, 0.0f, 1.0f
 };
-
 void renderScene() {
+    if (shapeChanged) {
+        updateShapeBuffer(pendingShape);
+        shapeChanged = false;
+    }
+
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(shaderProgram);
     glUniform2f(uniformAspectLoc, aspectX, aspectY);
@@ -327,7 +357,6 @@ void renderScene() {
     glUniform4f(uniformColorLoc, 0.25f, 0.85f, 0.25f, 1.0f);
     glDrawArrays(GL_LINES, 2, 2);
 
-    // Numeros (labels dos eixos)
     glUniform4f(uniformColorLoc, 0.9f, 0.9f, 0.9f, 1.0f);
     glBindVertexArray(numbersVAO);
     glDrawArrays(GL_LINES, 0, numbersVertexCount);
@@ -342,13 +371,11 @@ void renderScene() {
     glBindVertexArray(squareVAO);
 
     glUniform4f(uniformColorLoc, 0.3f, 0.6f, 0.9f, 0.35f);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, squareVertexCount);
 
     glUniform4f(uniformColorLoc, 0.6f, 0.85f, 1.0f, 1.0f);
-    glDrawArrays(GL_LINE_LOOP, 0, 4);
+    glDrawArrays(GL_LINE_LOOP, 0, squareVertexCount);
 
-    // Antes: glfwSwapBuffers(window) + glfwPollEvents()
-    // Agora o contexto e o HDC do Canvas Java, entao usamos a API do Windows direto
     SwapBuffers(hdc);
 }
 
@@ -487,10 +514,8 @@ JNIEXPORT void JNICALL Java_graphics_MotorGrafico_cleanup(JNIEnv*, jobject) {
 }
 
 JNIEXPORT void JNICALL Java_graphics_MotorGrafico_shape(JNIEnv*, jobject, jint shape) {
-	/* 0 -> quadrado
-	 * 1 -> triângulo
-	 * 2 -> retângulo
-	*/
+    pendingShape = (int)shape;
+    shapeChanged = true;
 }
 
 } // extern "C"
