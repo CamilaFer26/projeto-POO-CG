@@ -76,4 +76,21 @@ public class Matriz {
             A matriz é invertível.
             """;
     }
+    
+    public float[][] toFloat() {
+    	double[][] matriz = this.valores;
+        int linhas = matriz.length;
+        int colunas = matriz[0].length;
+
+        float[][] resultado = new float[linhas][colunas];
+
+        for (int i = 0; i < linhas; i++) {
+            for (int j = 0; j < colunas; j++) {
+                resultado[i][j] = (float) matriz[i][j];
+            }
+        }
+
+        return resultado;
+    }
+    
 }

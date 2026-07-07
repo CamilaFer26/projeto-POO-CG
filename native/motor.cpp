@@ -486,4 +486,11 @@ JNIEXPORT void JNICALL Java_graphics_MotorGrafico_cleanup(JNIEnv*, jobject) {
     hwnd = nullptr;
 }
 
+JNIEXPORT void JNICALL Java_graphics_MotorGrafico_shape(JNIEnv*, jobject, jint shape) {
+	/* 0 -> quadrado
+	 * 1 -> triângulo
+	 * 2 -> retângulo
+	*/
+}
+
 } // extern "C"

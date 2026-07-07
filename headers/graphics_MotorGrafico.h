@@ -31,6 +31,14 @@ JNIEXPORT void JNICALL Java_graphics_MotorGrafico_update
 JNIEXPORT void JNICALL Java_graphics_MotorGrafico_cleanup
   (JNIEnv *, jobject);
 
+/*
+ * Class:     graphics_MotorGrafico
+ * Method:    shape
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_graphics_MotorGrafico_shape
+  (JNIEnv *, jobject, jint);
+
 #ifdef __cplusplus
 }
 #endif
