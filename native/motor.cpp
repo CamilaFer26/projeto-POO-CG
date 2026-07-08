@@ -8,78 +8,99 @@
 #include <vector>
 #include <algorithm>
 #include "../headers/graphics_MotorGrafico.h"
+// ============================================================
+// Janela e contexto OpenGL
+// ============================================================
+HWND hwnd = nullptr;   // handle nativo da janela por tras do Canvas Java (obtido via JAWT)
+HDC hdc = nullptr;     // device context associado ao hwnd; usado para SwapBuffers a cada frame
+HGLRC hglrc = nullptr; // contexto de renderizacao OpenGL, "current" apenas na glThread
 
-// Handle nativo da janela (obtido do Canvas Java via JAWT) e contexto OpenGL
-HWND hwnd = nullptr;
-HDC hdc = nullptr;
-HGLRC hglrc = nullptr;
+// ============================================================
+// Controle do loop de renderizacao
+// ============================================================
+volatile bool running = false; // true enquanto o loop em init() deve continuar rodando; cleanup() seta false para encerra-lo
 
-// Controla o loop de renderizacao. Como nao ha mais GLFWwindow, quem derruba
-// o loop e uma chamada externa a cleanup() (ex: ao fechar o JFrame).
-volatile bool running = false;
+// ============================================================
+// Matriz de transformacao linear (2x2), controlada pela UI Java
+// ============================================================
+// | matrixM11  matrixM12 |
+// | matrixM21  matrixM22 |
+// Comeca como identidade (sem transformacao). Atualizada via update(), lida a cada frame em renderScene().
+float matrixM11 = 1.0f, matrixM12 = 0.0f, matrixM21 = 0.0f, matrixM22 = 1.0f;
 
-float matA = 1.0f, matB = 0.0f, matC = 0.0f, matD = 1.0f;
+// ============================================================
+// Plano cartesiano (grade, eixos, rotulos numericos)
+// ============================================================
+const float PLANE_LIMIT = 5.0f; // alcance do plano: de -5 a +5 em X e Y (usado para gerar grade, eixos e rotulos)
+int gridVertexCount = 0;         // quantidade de vertices da grade, calculada em setupGrid()
+GLuint gridVAO = 0, gridVBO = 0; // buffers das linhas da grade (fixas, GL_STATIC_DRAW)
+GLuint axesVAO = 0, axesVBO = 0; // buffers dos eixos X e Y (2 segmentos fixos, 4 vertices no total)
+GLuint axisLabelsVAO = 0, axisLabelsVBO = 0; // buffers dos numeros desenhados nos eixos (estilo 7 segmentos)
+int axisLabelsVertexCount = 0;                // total de vertices de todos os rotulos combinados, calculado em setupNumbers()
 
-// Limite do plano cartesiano: de -PLANE_LIMIT a +PLANE_LIMIT em X e Y
-const float PLANE_LIMIT = 5.0f;
+// ============================================================
+// Forma geometrica ativa (quadrado / triangulo / retangulo)
+// ============================================================
+GLuint shapeVao = 0, shapeVBO = 0; // buffers da forma atualmente exibida; conteudo trocado dinamicamente via updateShapeBuffer()
+int shapeVertexCount = 4;          // quantidade de vertices da forma atual (3 para triangulo, 4 para quadrado/retangulo)
 
-GLuint shaderProgram = 0;
-GLint uniformTransformLoc;
-GLint uniformColorLoc;
-GLint uniformAspectLoc;
-float aspectX = 1.0f;
-float aspectY = 1.0f;
+// Mecanismo de "estado pendente" para trocar de forma com seguranca entre threads:
+// a EDT (Java) so escreve aqui via shape(); quem aplica de fato e a glThread, dentro de renderScene()
+volatile int requestShapeId = 0;  // id da forma pedida (0=quadrado, 1=triangulo, 2=retangulo), ainda nao aplicada
+volatile bool shapeChanged = false; // sinaliza que existe uma troca de forma pendente para renderScene() processar
 
-// Figura (o quadrado), definida em unidades CARTESIANAS (nao em pixels/clip space)
-GLuint squareVAO = 0, squareVBO = 0;
-int squareVertexCount = 4;
+// ============================================================
+// Shader program e uniforms
+// ============================================================
+GLuint shaderProgram = 0;        // programa de shader compilado/linkado (vertex + fragment)
+GLint uniformTransformLoc;       // localizacao do uniform "transform" (mat3) no shader
+GLint uniformColorLoc;           // localizacao do uniform "color" (vec4) no shader
+GLint uniformAspectLoc;          // localizacao do uniform "aspect" (vec2) no shader
 
-// shape() pode ser chamada de outra thread (glThread fica bloqueada dentro de init(),
-// rodando o render loop), entao nao da pra chamar GL direto ali.
-// Usamos o mesmo padrao de "estado pendente" que ja existe em update()/matA..matD
-volatile int pendingShape = 0;
-volatile bool shapeChanged = false;
+// ============================================================
+// Correcao de aspect ratio (canvas nao-quadrado)
+// ============================================================
+float aspectX = 1.0f; // fator de correcao no eixo X, calculado em init() a partir das dimensoes reais do canvas
+float aspectY = 1.0f; // fator de correcao no eixo Y, idem
 
-// Grade do plano (linhas de -5 a 5)
-GLuint gridVAO = 0, gridVBO = 0;
-int gridVertexCount = 0;
-
-// Eixos X e Y, desenhados em cores diferentes
-GLuint axisVAO = 0, axisVBO = 0;
-
-// Numeros do plano (labels -5 a 5 nos eixos, feitos com "digitos de 7 segmentos")
-GLuint numbersVAO = 0, numbersVBO = 0;
-int numbersVertexCount = 0;
+// ============================================================
+// Shaders: codigo-fonte GLSL
+// ============================================================
 
 const char* vertexShaderSource = R"(
-#version 330 core
-layout (location = 0) in vec2 aPos;
-uniform mat3 transform;
-uniform vec2 aspect;
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        uniform mat3 transform;
+        uniform vec2 aspect;
 
-void main()
-{
-    // Converte unidades cartesianas (-5..5) para o clip space do OpenGL (-1..1)
-    const float worldScale = 1.0 / 5.0;
+        void main()
+        {
+            // Converte unidades cartesianas (-5..5) para o clip space do OpenGL (-1..1)
+            const float worldScale = 1.0 / 5.0;
 
-    vec3 pos = transform * vec3(aPos, 1.0);
-    pos.xy *= worldScale;
-    pos.xy *= aspect; // corrige a distorcao de canvas nao-quadrado
-    gl_Position = vec4(pos.xy, 0.0, 1.0);
-}
-)";
+            vec3 pos = transform * vec3(aPos, 1.0);
+            pos.xy *= worldScale;
+            pos.xy *= aspect; // corrige a distorcao de canvas nao-quadrado
+            gl_Position = vec4(pos.xy, 0.0, 1.0);
+        }
+    )";
 
 const char* fragmentShaderSource = R"(
-#version 330 core
-out vec4 FragColor;
-uniform vec4 color;
+        #version 330 core
+        out vec4 FragColor;
+        uniform vec4 color;
 
-void main()
-{
-    FragColor = color;
-}
-)";
+        void main()
+        {
+            FragColor = color;
+        }
+    )";
 
+// ============================================================
+// Shaders: compilacao e linkagem
+// ============================================================
+
+// Compila um unico shader (vertex ou fragment) a partir do source, checando erros de compilacao
 GLuint compileShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
@@ -95,10 +116,10 @@ GLuint compileShader(GLenum type, const char* source) {
     return shader;
 }
 
+// Compila vertex+fragment, linka no shaderProgram e cacheia as localizacoes dos uniforms
 void setupShader() {
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
-    
 
     shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
@@ -118,10 +139,15 @@ void setupShader() {
 
     uniformTransformLoc = glGetUniformLocation(shaderProgram, "transform");
     uniformColorLoc = glGetUniformLocation(shaderProgram, "color");
-    uniformAspectLoc = glGetUniformLocation(shaderProgram, "aspect"); // <-- adicionar
-
+    uniformAspectLoc = glGetUniformLocation(shaderProgram, "aspect");
 }
 
+// ============================================================
+// Forma geometrica ativa (quadrado / triangulo / retangulo)
+// ============================================================
+
+// Reescreve o conteudo do shapeVBO com os vertices da forma pedida (0=quadrado, 1=triangulo, 2=retangulo)
+// Chamada tanto na inicializacao quanto sempre que shapeChanged sinaliza uma troca pendente
 void updateShapeBuffer(int shape) {
     std::vector<float> vertices;
 
@@ -138,21 +164,22 @@ void updateShapeBuffer(int shape) {
             break;
     }
 
-    squareVertexCount = (int)(vertices.size() / 2);
+    shapeVertexCount = (int)(vertices.size() / 2);
 
-    glBindVertexArray(squareVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, squareVBO);
+    glBindVertexArray(shapeVao);
+    glBindBuffer(GL_ARRAY_BUFFER, shapeVBO);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
 
-void setupSquare() {
-    glGenVertexArrays(1, &squareVAO);
-    glGenBuffers(1, &squareVBO);
+// Cria o VAO/VBO da forma geometrica (uma unica vez) e inicializa como quadrado
+void setupShape() {
+    glGenVertexArrays(1, &shapeVao);
+    glGenBuffers(1, &shapeVBO);
 
-    glBindVertexArray(squareVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, squareVBO);
+    glBindVertexArray(shapeVao);
+    glBindBuffer(GL_ARRAY_BUFFER, shapeVBO);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -163,6 +190,11 @@ void setupSquare() {
     updateShapeBuffer(0); // comeca como quadrado, igual ao comportamento original
 }
 
+// ============================================================
+// Plano cartesiano: grade e eixos (geometria fixa, GL_STATIC_DRAW)
+// ============================================================
+
+// Gera as linhas da grade (uma vertical e uma horizontal por unidade, de -PLANE_LIMIT a +PLANE_LIMIT)
 void setupGrid() {
     std::vector<float> gridVertices;
 
@@ -195,17 +227,18 @@ void setupGrid() {
     glBindVertexArray(0);
 }
 
+// Gera os dois segmentos que formam os eixos X e Y (fixos, de -PLANE_LIMIT a +PLANE_LIMIT)
 void setupAxis() {
     float axisVertices[] = {
         -PLANE_LIMIT, 0.0f,   PLANE_LIMIT, 0.0f,
         0.0f, -PLANE_LIMIT,   0.0f, PLANE_LIMIT
     };
 
-    glGenVertexArrays(1, &axisVAO);
-    glGenBuffers(1, &axisVBO);
+    glGenVertexArrays(1, &axesVAO);
+    glGenBuffers(1, &axesVBO);
 
-    glBindVertexArray(axisVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, axisVBO);
+    glBindVertexArray(axesVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, axesVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(axisVertices), axisVertices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
@@ -214,8 +247,12 @@ void setupAxis() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
+// ============================================================
+// Rotulos numericos dos eixos (digitos estilo "7 segmentos")
+// ============================================================
 
-// Mapa de segmentos ligados por digito (A,B,C,D,E,F,G), estilo display de 7 segmentos.
+// Tabela de lookup: para cada digito (0-9) ou o sinal de menos (indice 10),
+// diz quais dos 7 segmentos (A-G) estao acesos.
 // A=topo, B=direita-cima, C=direita-baixo, D=base, E=esquerda-baixo, F=esquerda-cima, G=meio
 bool segmentsOn[11][7] = {
     /*0*/ {1,1,1,1,1,1,0},
@@ -291,6 +328,7 @@ void addNumber(std::vector<float>& verts, int number, float centerX, float y, fl
     }
 }
 
+// Gera todos os rotulos numericos dos eixos X e Y (de -PLANE_LIMIT a +PLANE_LIMIT) num unico buffer
 void setupNumbers() {
     std::vector<float> numberVertices;
 
@@ -307,13 +345,13 @@ void setupNumbers() {
         }
     }
 
-    numbersVertexCount = (int)(numberVertices.size() / 2);
+    axisLabelsVertexCount = (int)(numberVertices.size() / 2);
 
-    glGenVertexArrays(1, &numbersVAO);
-    glGenBuffers(1, &numbersVBO);
+    glGenVertexArrays(1, &axisLabelsVAO);
+    glGenBuffers(1, &axisLabelsVBO);
 
-    glBindVertexArray(numbersVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, numbersVBO);
+    glBindVertexArray(axisLabelsVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, axisLabelsVBO);
     glBufferData(GL_ARRAY_BUFFER, numberVertices.size() * sizeof(float), numberVertices.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
@@ -323,22 +361,33 @@ void setupNumbers() {
     glBindVertexArray(0);
 }
 
+// ============================================================
+// Inicializacao conjunta de todos os objetos graficos
+// ============================================================
+
+// Chamada uma vez em init(), apos o contexto OpenGL estar current
 void setupGraphics() {
     setupShader();
-    setupSquare();
+    setupShape();
     setupGrid();
     setupAxis();
     setupNumbers();
 }
+
+// ============================================================
+// Loop de renderizacao (roda continuamente na glThread)
+// ============================================================
 
 const float IDENTITY_MATRIX[] = {
     1.0f, 0.0f, 0.0f,
     0.0f, 1.0f, 0.0f,
     0.0f, 0.0f, 1.0f
 };
+
+// Desenha um frame completo: aplica troca de forma pendente, depois grade -> eixos -> rotulos -> forma
 void renderScene() {
     if (shapeChanged) {
-        updateShapeBuffer(pendingShape);
+        updateShapeBuffer(requestShapeId);
         shapeChanged = false;
     }
 
@@ -346,176 +395,198 @@ void renderScene() {
     glUseProgram(shaderProgram);
     glUniform2f(uniformAspectLoc, aspectX, aspectY);
 
+    // --- grade (fixa, sem transformacao) ---
     glUniformMatrix3fv(uniformTransformLoc, 1, GL_FALSE, IDENTITY_MATRIX);
     glUniform4f(uniformColorLoc, 0.35f, 0.35f, 0.35f, 1.0f);
     glBindVertexArray(gridVAO);
     glDrawArrays(GL_LINES, 0, gridVertexCount);
 
-    glBindVertexArray(axisVAO);
+    // --- eixos X (vermelho) e Y (verde) ---
+    glBindVertexArray(axesVAO);
     glUniform4f(uniformColorLoc, 0.85f, 0.25f, 0.25f, 1.0f);
     glDrawArrays(GL_LINES, 0, 2);
     glUniform4f(uniformColorLoc, 0.25f, 0.85f, 0.25f, 1.0f);
     glDrawArrays(GL_LINES, 2, 2);
 
+    // --- rotulos numericos dos eixos ---
     glUniform4f(uniformColorLoc, 0.9f, 0.9f, 0.9f, 1.0f);
-    glBindVertexArray(numbersVAO);
-    glDrawArrays(GL_LINES, 0, numbersVertexCount);
+    glBindVertexArray(axisLabelsVAO);
+    glDrawArrays(GL_LINES, 0, axisLabelsVertexCount);
 
+    // --- forma geometrica (afetada pela matriz de transformacao do usuario) ---
     float transform[] = {
-        matA, matC, 0.0f,
-        matB, matD, 0.0f,
+        matrixM11, matrixM21, 0.0f,
+        matrixM12, matrixM22, 0.0f,
         0.0f, 0.0f, 1.0f
     };
 
     glUniformMatrix3fv(uniformTransformLoc, 1, GL_FALSE, transform);
-    glBindVertexArray(squareVAO);
+    glBindVertexArray(shapeVao);
 
-    glUniform4f(uniformColorLoc, 0.3f, 0.6f, 0.9f, 0.35f);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, squareVertexCount);
+    glUniform4f(uniformColorLoc, 0.3f, 0.6f, 0.9f, 0.35f); // preenchimento semitransparente
+    glDrawArrays(GL_TRIANGLE_FAN, 0, shapeVertexCount);
 
-    glUniform4f(uniformColorLoc, 0.6f, 0.85f, 1.0f, 1.0f);
-    glDrawArrays(GL_LINE_LOOP, 0, squareVertexCount);
+    glUniform4f(uniformColorLoc, 0.6f, 0.85f, 1.0f, 1.0f); // contorno opaco
+    glDrawArrays(GL_LINE_LOOP, 0, shapeVertexCount);
 
     SwapBuffers(hdc);
 }
 
+// ============================================================
+// Funcoes JNI expostas ao Java (graphics.MotorGrafico)
+// ============================================================
+
 extern "C" {
 
-JNIEXPORT void JNICALL Java_graphics_MotorGrafico_init(JNIEnv* env, jobject obj, jobject canvas) {
-    // 1) Obter o JAWT
-    JAWT awt;
-    awt.version = JAWT_VERSION_9;
-    if (JAWT_GetAWT(env, &awt) == JNI_FALSE) {
-        std::cout << "Erro ao obter JAWT" << std::endl;
-        return;
-    }
+    // Conecta ao Canvas via JAWT, cria o contexto OpenGL, inicializa os graficos
+    // e entra no loop de renderizacao (nunca retorna ate running virar false)
+    JNIEXPORT void JNICALL Java_graphics_MotorGrafico_init(JNIEnv* env, jobject obj, jobject canvas) {
+        // 1) Obter o JAWT
+        JAWT awt;
+        awt.version = JAWT_VERSION_9;
+        if (JAWT_GetAWT(env, &awt) == JNI_FALSE) {
+            std::cout << "Erro ao obter JAWT" << std::endl;
+            return;
+        }
 
-    // 2) Obter a DrawingSurface do Canvas e travar
-    JAWT_DrawingSurface* ds = awt.GetDrawingSurface(env, canvas);
-    if (ds == nullptr) {
-        std::cout << "Erro ao obter DrawingSurface" << std::endl;
-        return;
-    }
+        // 2) Obter a DrawingSurface do Canvas e travar
+        JAWT_DrawingSurface* ds = awt.GetDrawingSurface(env, canvas);
+        if (ds == nullptr) {
+            std::cout << "Erro ao obter DrawingSurface" << std::endl;
+            return;
+        }
 
-    jint lock = ds->Lock(ds);
-    if ((lock & JAWT_LOCK_ERROR) != 0) {
-        std::cout << "Erro ao travar DrawingSurface" << std::endl;
-        awt.FreeDrawingSurface(ds);
-        return;
-    }
+        jint lock = ds->Lock(ds);
+        if ((lock & JAWT_LOCK_ERROR) != 0) {
+            std::cout << "Erro ao travar DrawingSurface" << std::endl;
+            awt.FreeDrawingSurface(ds);
+            return;
+        }
 
-    // 3) Extrair o HWND nativo do Canvas (Windows)
-    JAWT_DrawingSurfaceInfo* dsi = ds->GetDrawingSurfaceInfo(ds);
-    if (dsi == nullptr) {
-        std::cout << "Erro ao obter DrawingSurfaceInfo" << std::endl;
+        // 3) Extrair o HWND nativo do Canvas (Windows)
+        JAWT_DrawingSurfaceInfo* dsi = ds->GetDrawingSurfaceInfo(ds);
+        if (dsi == nullptr) {
+            std::cout << "Erro ao obter DrawingSurfaceInfo" << std::endl;
+            ds->Unlock(ds);
+            awt.FreeDrawingSurface(ds);
+            return;
+        }
+
+        JAWT_Win32DrawingSurfaceInfo* dsiWin = (JAWT_Win32DrawingSurfaceInfo*)dsi->platformInfo;
+        hwnd = dsiWin->hwnd;
+
+        ds->FreeDrawingSurfaceInfo(dsi);
         ds->Unlock(ds);
         awt.FreeDrawingSurface(ds);
-        return;
+
+        if (hwnd == nullptr) {
+            std::cout << "HWND invalido" << std::endl;
+            return;
+        }
+
+        // 4) Criar o contexto OpenGL em cima do HWND do Canvas
+        hdc = GetDC(hwnd);
+
+        PIXELFORMATDESCRIPTOR pfd = { sizeof(PIXELFORMATDESCRIPTOR), 1 };
+        pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+        pfd.iPixelType = PFD_TYPE_RGBA;
+        pfd.cColorBits = 32;
+        pfd.cDepthBits = 24;
+        pfd.iLayerType = PFD_MAIN_PLANE;
+
+        int pixelFormat = ChoosePixelFormat(hdc, &pfd);
+        if (pixelFormat == 0 || !SetPixelFormat(hdc, pixelFormat, &pfd)) {
+            std::cout << "Erro ao configurar pixel format" << std::endl;
+            return;
+        }
+
+        hglrc = wglCreateContext(hdc);
+        wglMakeCurrent(hdc, hglrc);
+
+        glewExperimental = GL_TRUE;
+        if (glewInit() != GLEW_OK) {
+            std::cout << "Erro ao iniciar GLEW" << std::endl;
+            return;
+        }
+
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+        int width = rect.right - rect.left;
+        int height = rect.bottom - rect.top;
+        glViewport(0, 0, width, height);
+
+        // Mantem proporcao 1:1 entre unidades do plano em X e Y, evitando esticar
+        // o desenho quando o canvas nao e quadrado (ex: 750x550)
+        int minDim = (width < height) ? width : height;
+        aspectX = (float)minDim / (float)width;
+        aspectY = (float)minDim / (float)height;
+
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        setupGraphics();
+
+        // 5) Loop de renderizacao. Termina quando cleanup() setar running = false
+        running = true;
+        while (running)
+            renderScene();
     }
 
-    JAWT_Win32DrawingSurfaceInfo* dsiWin = (JAWT_Win32DrawingSurfaceInfo*)dsi->platformInfo;
-    hwnd = dsiWin->hwnd;
-
-    ds->FreeDrawingSurfaceInfo(dsi);
-    ds->Unlock(ds);
-    awt.FreeDrawingSurface(ds);
-
-    if (hwnd == nullptr) {
-        std::cout << "HWND invalido" << std::endl;
-        return;
+    // Recebe a nova matriz de transformacao linear vinda da UI Java e grava nas variaveis globais
+    JNIEXPORT void JNICALL Java_graphics_MotorGrafico_update(JNIEnv*, jobject, jfloat a, jfloat b, jfloat c, jfloat d) {
+        matrixM11 = a;
+        matrixM12 = b;
+        matrixM21 = c;
+        matrixM22 = d;
     }
 
-    // 4) Criar o contexto OpenGL em cima do HWND do Canvas
-    hdc = GetDC(hwnd);
+    // Encerra o loop de renderizacao e libera todos os recursos GPU/janela/contexto
+    JNIEXPORT void JNICALL Java_graphics_MotorGrafico_cleanup(JNIEnv*, jobject) {
+        // Derruba o loop de renderizacao em init()
+        running = false;
 
-    PIXELFORMATDESCRIPTOR pfd = { sizeof(PIXELFORMATDESCRIPTOR), 1 };
-    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-    pfd.iPixelType = PFD_TYPE_RGBA;
-    pfd.cColorBits = 32;
-    pfd.cDepthBits = 24;
-    pfd.iLayerType = PFD_MAIN_PLANE;
+        if (shapeVao != 0)
+            glDeleteVertexArrays(1, &shapeVao); shapeVao = 0; 
+        if (shapeVBO != 0)
+            glDeleteBuffers(1, &shapeVBO); shapeVBO = 0; 
 
-    int pixelFormat = ChoosePixelFormat(hdc, &pfd);
-    if (pixelFormat == 0 || !SetPixelFormat(hdc, pixelFormat, &pfd)) {
-        std::cout << "Erro ao configurar pixel format" << std::endl;
-        return;
+        if (gridVAO != 0) 
+            glDeleteVertexArrays(1, &gridVAO); gridVAO = 0; 
+        if (gridVBO != 0) 
+            glDeleteBuffers(1, &gridVBO); gridVBO = 0; 
+
+        if (axesVAO != 0) 
+            glDeleteVertexArrays(1, &axesVAO); axesVAO = 0; 
+        if (axesVBO != 0) 
+            glDeleteBuffers(1, &axesVBO); axesVBO = 0; 
+
+        if (axisLabelsVAO != 0) 
+            glDeleteVertexArrays(1, &axisLabelsVAO); axisLabelsVAO = 0; 
+        if (axisLabelsVBO != 0) 
+            glDeleteBuffers(1, &axisLabelsVBO); axisLabelsVBO = 0; 
+
+        if (shaderProgram != 0) 
+            glDeleteProgram(shaderProgram); shaderProgram = 0; 
+
+        if (hglrc != nullptr) {
+            wglMakeCurrent(nullptr, nullptr);
+            wglDeleteContext(hglrc);
+            hglrc = nullptr;
+        }
+        if (hdc != nullptr && hwnd != nullptr) {
+            ReleaseDC(hwnd, hdc);
+            hdc = nullptr;
+        }
+
+        hwnd = nullptr;
     }
 
-    hglrc = wglCreateContext(hdc);
-    wglMakeCurrent(hdc, hglrc);
-
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) {
-        std::cout << "Erro ao iniciar GLEW" << std::endl;
-        return;
+    // Recebe um pedido de troca de forma da UI Java; so grava estado, quem aplica e renderScene()
+    JNIEXPORT void JNICALL Java_graphics_MotorGrafico_shape(JNIEnv*, jobject, jint shape) {
+        requestShapeId = (int)shape;
+        shapeChanged = true;
     }
 
-    RECT rect;
-    GetClientRect(hwnd, &rect);
-    int width = rect.right - rect.left;
-    int height = rect.bottom - rect.top;
-    glViewport(0, 0, width, height);
-
-    // Mantem proporcao 1:1 entre unidades do plano em X e Y, evitando esticar
-    // o desenho quando o canvas nao e quadrado (ex: 750x550)
-    int minDim = (width < height) ? width : height;
-    aspectX = (float)minDim / (float)width;
-    aspectY = (float)minDim / (float)height;
-
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    setupGraphics();
-
-    // 5) Loop de renderizacao. Termina quando cleanup() setar running = false
-    running = true;
-    while (running) {
-        renderScene();
-    }
 }
-
-JNIEXPORT void JNICALL Java_graphics_MotorGrafico_update(JNIEnv*, jobject, jfloat a, jfloat b, jfloat c, jfloat d) {
-    matA = a;
-    matB = b;
-    matC = c;
-    matD = d;
-}
-
-JNIEXPORT void JNICALL Java_graphics_MotorGrafico_cleanup(JNIEnv*, jobject) {
-    // Derruba o loop de renderizacao em init()
-    running = false;
-
-    if (squareVAO != 0) { glDeleteVertexArrays(1, &squareVAO); squareVAO = 0; }
-    if (squareVBO != 0) { glDeleteBuffers(1, &squareVBO); squareVBO = 0; }
-
-    if (gridVAO != 0) { glDeleteVertexArrays(1, &gridVAO); gridVAO = 0; }
-    if (gridVBO != 0) { glDeleteBuffers(1, &gridVBO); gridVBO = 0; }
-
-    if (axisVAO != 0) { glDeleteVertexArrays(1, &axisVAO); axisVAO = 0; }
-    if (axisVBO != 0) { glDeleteBuffers(1, &axisVBO); axisVBO = 0; }
-
-    if (numbersVAO != 0) { glDeleteVertexArrays(1, &numbersVAO); numbersVAO = 0; }
-    if (numbersVBO != 0) { glDeleteBuffers(1, &numbersVBO); numbersVBO = 0; }
-
-    if (shaderProgram != 0) { glDeleteProgram(shaderProgram); shaderProgram = 0; }
-
-    if (hglrc != nullptr) {
-        wglMakeCurrent(nullptr, nullptr);
-        wglDeleteContext(hglrc);
-        hglrc = nullptr;
-    }
-    if (hdc != nullptr && hwnd != nullptr) {
-        ReleaseDC(hwnd, hdc);
-        hdc = nullptr;
-    }
-    hwnd = nullptr;
-}
-
-JNIEXPORT void JNICALL Java_graphics_MotorGrafico_shape(JNIEnv*, jobject, jint shape) {
-    pendingShape = (int)shape;
-    shapeChanged = true;
-}
-
-} // extern "C"
