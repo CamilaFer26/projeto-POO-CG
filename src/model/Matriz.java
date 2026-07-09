@@ -93,4 +93,23 @@ public class Matriz {
         return resultado;
     }
     
+    public Matriz multiplicar(Matriz outra) {
+
+        double a11 = getValor(0,0);
+        double a12 = getValor(0,1);
+        double a21 = getValor(1,0);
+        double a22 = getValor(1,1);
+
+        double b11 = outra.getValor(0,0);
+        double b12 = outra.getValor(0,1);
+        double b21 = outra.getValor(1,0);
+        double b22 = outra.getValor(1,1);
+
+        return new Matriz(
+            a11*b11 + a12*b21,
+            a11*b12 + a12*b22,
+            a21*b11 + a22*b21,
+            a21*b12 + a22*b22
+        );
+    }
 }

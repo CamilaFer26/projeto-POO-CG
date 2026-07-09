@@ -7,13 +7,15 @@ import graphics.MotorGrafico;
 import model.Matriz;
 
 import java.awt.*;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 
 public class TransformUI extends JFrame{
 	private final long serialVersionUID = 1L;
 	private MotorGrafico motor;
 	private Canvas glCanvas;
-	private JSlider slider;
 	private JTable table;
+	private JTable table2;
 	private String[] shapes = {
 			"Escolha uma opção",
 			"Quadrado",
@@ -21,6 +23,7 @@ public class TransformUI extends JFrame{
 			"Circulo",
 			"Vetor"
 	};
+	
 	private String[] transDefault = {
 			"Personalizado",
 			"Identidade",
@@ -34,11 +37,14 @@ public class TransformUI extends JFrame{
 			"Projeção em X",
 			"Projeção em Y"
 	};
+	
 	private JComboBox<String> transforms;
 	private JPanel panelAuxiliar;
 	private Matriz matriz;
+	private Matriz acumulada;
 	private JLabel lblDeterminante;
-	JTextArea descricao;
+	private JTextArea descricao;
+	private JLabel lblAuxiliar;
 	
 	public TransformUI(MotorGrafico motor) {
 		this.motor = motor;
@@ -104,7 +110,7 @@ public class TransformUI extends JFrame{
         matriz = new Matriz(1, 0, 0, 1);
 		table = new JTable(matriz.getObjeto(), colunas);
 		
-		table.setFont(new Font("Tahoma", Font.PLAIN, 20));
+		table.setFont(new Font("Tahoma", Font.PLAIN, 13));
 		table.setTableHeader(null);
 		table.setFillsViewportHeight(true);
 		table.setRowHeight(48);
@@ -143,12 +149,12 @@ public class TransformUI extends JFrame{
 		descricao.setBackground(new Color(62, 75, 142));
 		descricao.setText(matriz.descricaoDet());
 		
-		// painel auxiliar para slider de rotação
+		// painel auxiliar para sliders
 		panelAuxiliar = new JPanel();
 		panelAuxiliar.setBackground(new Color(62, 75, 142));
-		panelAuxiliar.setBounds(10, 312, 238, 55);
+		panelAuxiliar.setBounds(10, 297, 238, 69);
 		panel.add(panelAuxiliar);
-		panelAuxiliar.setLayout(new GridLayout(2, 0, 0, 0));
+		panelAuxiliar.setLayout(new GridLayout(3, 0, 0, 0));
 		
 		// listener para alterações na tabela
 		table.getModel().addTableModelListener(e -> {
@@ -157,7 +163,6 @@ public class TransformUI extends JFrame{
 			
 			try {
 				double valor = Double.parseDouble(table.getValueAt(linha, coluna).toString());
-				System.out.printf("[%d, %d] = %f", linha, coluna, valor);
 				
 				if(matriz.getValor(linha, coluna) != valor) { // só atualiza se houver alteração
 					matriz.setValor(valor, linha, coluna);
@@ -177,11 +182,6 @@ public class TransformUI extends JFrame{
 			}
 		});
 		
-		// slider para rotação
-		slider = new JSlider();
-		slider.setBounds(20, 357, 200, 26);
-		slider.setValue(0);
-		
 		//------------ Botão reset ----------------------------
 		JButton reset = new JButton("Resetar");
 		reset.setBounds(69, 541, 131, 39);
@@ -192,9 +192,70 @@ public class TransformUI extends JFrame{
 			
 			atualizarTabela();
 			panelAuxiliar.removeAll();
-		    //motor.cleanup();
 		});
 		panel.add(reset);
+		
+		// label auxiliar
+		lblAuxiliar = new JLabel("");
+		lblAuxiliar.setForeground(new Color(255, 255, 255));
+		lblAuxiliar.setFont(new Font("Times New Roman", Font.BOLD, 15));
+		lblAuxiliar.setBounds(20, 297, 140, 14);
+		panelAuxiliar.add(lblAuxiliar);
+		
+		//--------- Tabela (Matriz de transformações acumuladas) ---------------------
+		acumulada = new Matriz(1, 0, 0, 1);
+		table2 = new JTable(acumulada.getObjeto(), colunas);
+				
+		table2.setFont(new Font("Tahoma", Font.PLAIN, 13));
+		table2.setTableHeader(null);
+		table2.setFillsViewportHeight(true);
+		table2.setRowHeight(48);
+				
+		// centraliza o texto na tabela
+		center.setHorizontalAlignment(JLabel.CENTER);
+		table2.setDefaultRenderer(Object.class, center);
+				
+		// scroll pane para a tabela
+		JScrollPane scrollPane_2 = new JScrollPane(table2);
+		scrollPane_2.setBounds(44, 398, 100, 100);
+		panel.add(scrollPane_2);
+				
+		JLabel lblMatrizAcumulada = new JLabel("Matriz Acumulada");
+		lblMatrizAcumulada.setForeground(new Color(255, 255, 255));
+		lblMatrizAcumulada.setFont(new Font("Times New Roman", Font.BOLD, 15));
+		lblMatrizAcumulada.setBounds(31, 382, 135, 14);
+		panel.add(lblMatrizAcumulada);
+		
+		JButton btnNewButton = new JButton("Aplicar");
+		btnNewButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+			}
+		});
+		btnNewButton.setBounds(159, 414, 89, 23);
+		panel.add(btnNewButton);
+		btnNewButton.addActionListener(e -> {
+		    acumulada = matriz.multiplicar(acumulada);
+		    atualizarAcumulada();
+
+		    float[][] m = acumulada.toFloat();
+		    motor.update(
+		        m[0][0],
+		        m[0][1],
+		        m[1][0],
+		        m[1][1]
+		    );
+		});
+		
+		JButton btnNewButton_1 = new JButton("Resetar");
+		btnNewButton_1.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				acumulada.setValores(1, 0, 0, 1);
+				atualizarAcumulada();
+			}
+		});
+		btnNewButton_1.setBounds(159, 446, 89, 23);
+		panel.add(btnNewButton_1);
+		
 	}
 	//--------------- FUNÇÕES AUXILIARES -----------------
 	// retorna o canvas para motor gráfico
@@ -226,10 +287,21 @@ public class TransformUI extends JFrame{
 	        matriz.descricaoDet()
 	    );
 	}
+	// atualiza a tabela da matriz acumulada e o motor
+	private void atualizarAcumulada() {
+
+	    Object[][] dados = acumulada.getObjeto();
+
+	    for(int i=0;i<2;i++)
+	        for(int j=0;j<2;j++)
+	            table2.setValueAt(dados[i][j], i, j);
+	}
 	
 	// controles para transformações lineares básicas
 	private void configurarControles() {
 	    panelAuxiliar.removeAll();
+	    lblAuxiliar.setText("");
+	    panelAuxiliar.add(lblAuxiliar);
 	    
 	    if(transforms.getSelectedIndex() == 0) {
 	    	table.setEnabled(true);
@@ -291,8 +363,8 @@ public class TransformUI extends JFrame{
 	
 	// slider para escala interativa
 	private void criarSliderEscala() {
-	    JSlider sliderx = new JSlider(0, 500, 100);
-	    JSlider slidery = new JSlider(0, 500, 100);
+	    JSlider sliderx = new JSlider(-500, 500, 100);
+	    JSlider slidery = new JSlider(-500, 500, 100);
 	    sliderx.addChangeListener(e -> {
 	        double sx = sliderx.getValue()/100.0;
 	        double sy = slidery.getValue()/100.0;
@@ -302,6 +374,7 @@ public class TransformUI extends JFrame{
 	            0,sy
 	        );
 	        atualizarTabela();
+	        lblAuxiliar.setText("X: " + sx + " Y: " + sy);
 	    });
 
 	    slidery.addChangeListener(e -> {
@@ -313,6 +386,7 @@ public class TransformUI extends JFrame{
 	            0,sy
 	        );
 	        atualizarTabela();
+	        lblAuxiliar.setText("X: " + sx + " Y: " + sy);
 	    });
 	    
 	    panelAuxiliar.add(sliderx);
@@ -324,6 +398,7 @@ public class TransformUI extends JFrame{
 	    JSlider slider = new JSlider(0, 360, 0);
 
 	    slider.addChangeListener(e -> {
+	    	lblAuxiliar.setText("Ângulo:");
 	        double angulo =
 	            Math.toRadians(slider.getValue());
 
@@ -335,6 +410,7 @@ public class TransformUI extends JFrame{
 	        );
 
 	        atualizarTabela();
+	        lblAuxiliar.setText("Ângulo: " + slider.getValue());
 	    });
 
 	    panelAuxiliar.add(slider);
@@ -342,7 +418,7 @@ public class TransformUI extends JFrame{
 	
 	// slider para cisalhamento vertical interativo
 	private void criarSliderCisalhamentoV() {
-	    JSlider slider = new JSlider(0, 360, 0);
+	    JSlider slider = new JSlider(-500, 500, 0);
 
 	    slider.addChangeListener(e -> {
 	        double s = slider.getValue()/100.0;
@@ -353,6 +429,7 @@ public class TransformUI extends JFrame{
 		    );
 
 	        atualizarTabela();
+	        lblAuxiliar.setText("" + s);
 	    });
 
 	    panelAuxiliar.add(slider);
@@ -360,7 +437,7 @@ public class TransformUI extends JFrame{
 	
 	// slider para cisalhamento horizontal interativo
 	private void criarSliderCisalhamentoH() {
-	    JSlider slider = new JSlider(0, 360, 0);
+	    JSlider slider = new JSlider(-500, 500, 0);
 
 	    slider.addChangeListener(e -> {
 	        double s = slider.getValue()/100.0;
@@ -371,6 +448,7 @@ public class TransformUI extends JFrame{
 		    );
 
 	        atualizarTabela();
+	        lblAuxiliar.setText("" + s);
 	    });
 
 	    panelAuxiliar.add(slider);
