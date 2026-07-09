@@ -77,7 +77,7 @@ Projeto/
 ## Compilação
 ### 1. Compilar as classes Java e gerar os cabeçalhos JNI
 ```bash
-javac -h headers -d build src\model\Matriz.java src\graphics\MotorGrafico.java src\view\Main.java src\view\TransformUI.java
+javac -h headers -d build src/model/Matriz.java src/graphics/MotorGrafico.java src/view/Main.java src/view/TransformUI.java src/view/TelaInicial.java
 ```
 
 Este comando:
