@@ -39,14 +39,19 @@ GLuint axisLabelsVAO = 0, axisLabelsVBO = 0; // buffers dos numeros desenhados n
 int axisLabelsVertexCount = 0;                // total de vertices de todos os rotulos combinados, calculado em setupNumbers()
 
 // ============================================================
-// Forma geometrica ativa (quadrado / triangulo / retangulo)
+// Forma geometrica ativa (quadrado / triangulo / circulo / vetor)
 // ============================================================
 GLuint shapeVao = 0, shapeVBO = 0; // buffers da forma atualmente exibida; conteudo trocado dinamicamente via updateShapeBuffer()
-int shapeVertexCount = 4;          // quantidade de vertices da forma atual (3 para triangulo, 4 para quadrado/retangulo)
+int shapeVertexCount = 4;          // quantidade de vertices da forma atual
+GLenum shapeDrawMode = GL_LINE_LOOP; // modo usado no contorno/linha; TRIANGLE_FAN so roda se shapeFilled=true
+bool shapeFilled = true;             // false = sem preenchimento (caso do vetor)
+
+// Vetor atual (usado quando shape == 3), atualizado via vector()
+float vectorX = 1.0f, vectorY = 0.0f;
 
 // Mecanismo de "estado pendente" para trocar de forma com seguranca entre threads:
-// a EDT (Java) so escreve aqui via shape(); quem aplica de fato e a glThread, dentro de renderScene()
-volatile int requestShapeId = 0;  // id da forma pedida (0=quadrado, 1=triangulo, 2=retangulo), ainda nao aplicada
+// a EDT (Java) so escreve aqui via shape()/vector(); quem aplica de fato e a glThread, dentro de renderScene()
+volatile int requestShapeId = 0;    // id da forma pedida (0=quadrado, 1=triangulo, 2=circulo, 3=vetor), ainda nao aplicada
 volatile bool shapeChanged = false; // sinaliza que existe uma troca de forma pendente para renderScene() processar
 
 // ============================================================
@@ -143,10 +148,13 @@ void setupShader() {
 }
 
 // ============================================================
-// Forma geometrica ativa (quadrado / triangulo / retangulo)
+// Forma geometrica ativa (quadrado / triangulo / circulo / vetor)
 // ============================================================
 
-// Reescreve o conteudo do shapeVBO com os vertices da forma pedida (0=quadrado, 1=triangulo, 2=retangulo)
+// Protótipo: precisa existir antes de updateShapeBuffer() usá-la (definição completa vem mais abaixo)
+std::vector<float> buildVectorVertices(float x, float y);
+
+// Reescreve o conteudo do shapeVBO com os vertices da forma pedida (0=quadrado, 1=triangulo, 2=circulo, 3=vetor)
 // Chamada tanto na inicializacao quanto sempre que shapeChanged sinaliza uma troca pendente
 void updateShapeBuffer(int shape) {
     std::vector<float> vertices;
@@ -154,13 +162,31 @@ void updateShapeBuffer(int shape) {
     switch (shape) {
         case 1: // triangulo
             vertices = { 0.0f, 1.0f,  -1.0f, -1.0f,  1.0f, -1.0f };
+            shapeDrawMode = GL_LINE_LOOP;
+            shapeFilled = true;
             break;
-        case 2: // retangulo
-            vertices = { -1.0f, -0.5f,  1.0f, -0.5f,  1.0f, 0.5f,  -1.0f, 0.5f };
+        case 2: { // circulo
+            const int numSegmentos = 64;
+            const float raio = 1.0f;
+            for (int i = 0; i < numSegmentos; i++) {
+                float angulo = 2.0f * 3.14159265f * (float)i / (float)numSegmentos;
+                vertices.push_back(raio * cosf(angulo));
+                vertices.push_back(raio * sinf(angulo));
+            }
+            shapeDrawMode = GL_LINE_LOOP;
+            shapeFilled = true;
+            break;
+        }
+        case 3: // vetor
+            vertices = buildVectorVertices(vectorX, vectorY);
+            shapeDrawMode = GL_LINES;
+            shapeFilled = false;
             break;
         case 0:
         default: // quadrado
             vertices = { -1.0f, -1.0f,  1.0f, -1.0f,  1.0f, 1.0f,  -1.0f, 1.0f };
+            shapeDrawMode = GL_LINE_LOOP;
+            shapeFilled = true;
             break;
     }
 
@@ -171,6 +197,38 @@ void updateShapeBuffer(int shape) {
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+}
+
+// Gera os vertices de um vetor (linha + ponta de seta) partindo da origem
+std::vector<float> buildVectorVertices(float x, float y) {
+    std::vector<float> v;
+
+    // linha principal: origem -> ponta
+    v.push_back(0.0f); v.push_back(0.0f);
+    v.push_back(x);    v.push_back(y);
+
+    // cabeca da seta: calcula o angulo do vetor
+    float comprimento = sqrtf(x * x + y * y);
+    if (comprimento < 0.0001f) return v; // vetor nulo, sem seta
+
+    float angulo = atan2f(y, x);
+    const float tamanhoSeta = 0.12f;      // tamanho das "asas" da seta
+    const float aberturaSeta = 0.4f;      // abertura angular (radianos)
+
+    float ang1 = angulo + 3.14159265f - aberturaSeta;
+    float ang2 = angulo + 3.14159265f + aberturaSeta;
+
+    // asa 1: ponta -> lado esquerdo
+    v.push_back(x); v.push_back(y);
+    v.push_back(x + tamanhoSeta * cosf(ang1));
+    v.push_back(y + tamanhoSeta * sinf(ang1));
+
+    // asa 2: ponta -> lado direito
+    v.push_back(x); v.push_back(y);
+    v.push_back(x + tamanhoSeta * cosf(ang2));
+    v.push_back(y + tamanhoSeta * sinf(ang2));
+
+    return v;
 }
 
 // Cria o VAO/VBO da forma geometrica (uma unica vez) e inicializa como quadrado
@@ -423,11 +481,13 @@ void renderScene() {
     glUniformMatrix3fv(uniformTransformLoc, 1, GL_FALSE, transform);
     glBindVertexArray(shapeVao);
 
-    glUniform4f(uniformColorLoc, 0.3f, 0.6f, 0.9f, 0.35f); // preenchimento semitransparente
-    glDrawArrays(GL_TRIANGLE_FAN, 0, shapeVertexCount);
+    if (shapeFilled) {
+        glUniform4f(uniformColorLoc, 0.3f, 0.6f, 0.9f, 0.35f); // preenchimento semitransparente
+        glDrawArrays(GL_TRIANGLE_FAN, 0, shapeVertexCount);
+    }
 
-    glUniform4f(uniformColorLoc, 0.6f, 0.85f, 1.0f, 1.0f); // contorno opaco
-    glDrawArrays(GL_LINE_LOOP, 0, shapeVertexCount);
+    glUniform4f(uniformColorLoc, 0.6f, 0.85f, 1.0f, 1.0f); // contorno/linha opaca
+    glDrawArrays(shapeDrawMode, 0, shapeVertexCount);
 
     SwapBuffers(hdc);
 }
@@ -586,6 +646,14 @@ extern "C" {
     // Recebe um pedido de troca de forma da UI Java; so grava estado, quem aplica e renderScene()
     JNIEXPORT void JNICALL Java_graphics_MotorGrafico_shape(JNIEnv*, jobject, jint shape) {
         requestShapeId = (int)shape;
+        shapeChanged = true;
+    }
+
+    // Recebe um novo vetor (x,y) da UI Java; atualiza o vetor e pede troca para a forma 3 (vetor)
+    JNIEXPORT void JNICALL Java_graphics_MotorGrafico_vector(JNIEnv*, jobject, jfloat x, jfloat y) {
+        vectorX = x;
+        vectorY = y;
+        requestShapeId = 3;
         shapeChanged = true;
     }
 

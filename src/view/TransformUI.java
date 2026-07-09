@@ -18,7 +18,8 @@ public class TransformUI extends JFrame{
 			"Escolha uma opção",
 			"Quadrado",
 			"Triângulo",
-			"Retângulo"
+			"Circulo",
+			"Vetor"
 	};
 	private String[] transDefault = {
 			"Personalizado",
