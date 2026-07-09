@@ -1,21 +1,19 @@
 package view;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-
+import controller.TransformController;
+import controller.TransformListener;
 import graphics.MotorGrafico;
-import model.Matriz;
-
+import model.*;
 import java.awt.*;
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
 
-public class TransformUI extends JFrame{
+// View principal. Responsabilidades: montar os
+// componentes Swing e traduzir eventos de UI em chamadas ao
+// TransformController.
+public class TransformUI extends JFrame implements TransformListener{
 	private final long serialVersionUID = 1L;
-	private MotorGrafico motor;
+	private final TransformController controller;
 	private Canvas glCanvas;
-	private JTable table;
-	private JTable table2;
 	private String[] shapes = {
 			"Escolha uma opção",
 			"Quadrado",
@@ -24,433 +22,285 @@ public class TransformUI extends JFrame{
 			"Vetor"
 	};
 	
-	private String[] transDefault = {
-			"Personalizado",
-			"Identidade",
-			"Escala",
-			"Rotação",
-			"Reflexão no eixo X",
-			"Reflexão no eixo Y",
-			"Reflexão na origem",
-			"Cisalhamento horizontal",
-			"Cisalhamento vertical",
-			"Projeção em X",
-			"Projeção em Y"
+	private final Transformacao[] transformacoes = {
+			new Personalizado(),
+			new Identidade(),
+			new Escala(),
+			new Rotacao(),
+			new ReflexaoX(),
+			new ReflexaoY(),
+			new ReflexaoOrigem(),
+			new CisalhamentoHorizontal(),
+			new CisalhamentoVertical(),
+			new ProjecaoX(),
+			new ProjecaoY()
 	};
 	
-	private JComboBox<String> transforms;
+	private JComboBox<Transformacao> transforms;
 	private JPanel panelAuxiliar;
-	private Matriz matriz;
-	private Matriz acumulada;
 	private JLabel lblDeterminante;
+	private JLabel vetoresBase;
 	private JTextArea descricao;
 	private JLabel lblAuxiliar;
 	
+	private MatrizPanel matrizPanel;
+	private MatrizPanel acumuladaPanel;
+	
 	public TransformUI(MotorGrafico motor) {
-		this.motor = motor;
+		this.controller = new TransformController(motor);
+		this.controller.setListener(this);
+ 
 		getContentPane().setBackground(new Color(166, 188, 201));
-		
-		//------------ Canvas para o OpenGL ------------------------
+ 
+		// ------------ Canvas para o OpenGL ------------------------
 		glCanvas = new Canvas();
 		glCanvas.setBounds(10, 10, 750, 590);
-		getContentPane().add(glCanvas);		
+		getContentPane().add(glCanvas);
 		setTitle("Visualizador educacional de transformações lineares");
 		this.setSize(1050, 650);
 		setResizable(false);
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
 		getContentPane().setLayout(null);
-		
-		//------------ Painel de opções/ferramentas ----------------
+ 
+		// ------------ Painel de opções/ferramentas ----------------
 		Panel panel = new Panel();
 		panel.setBackground(new Color(62, 75, 142));
 		panel.setBounds(766, 10, 258, 591);
 		getContentPane().add(panel);
 		panel.setLayout(null);
-		
-		// Título
+ 
 		JLabel lbl1 = new JLabel(" Transformações Lineares");
-		lbl1.setForeground(new Color(255, 255, 255));
+		lbl1.setForeground(Color.WHITE);
 		lbl1.setFont(new Font("Times New Roman", Font.BOLD, 22));
 		lbl1.setBounds(0, 0, 258, 46);
 		panel.add(lbl1);
-		
-		// Lista de formas geométricas
-		JLabel lbltransfLineares = new JLabel("Matriz de transformação");
-		lbltransfLineares.setForeground(Color.WHITE);
-		lbltransfLineares.setFont(new Font("Times New Roman", Font.BOLD, 15));
-		lbltransfLineares.setBounds(10, 119, 180, 14);
-		panel.add(lbltransfLineares);
-		
+ 
+		JLabel lblFormas = new JLabel("Forma geométrica");
+		lblFormas.setForeground(Color.WHITE);
+		lblFormas.setFont(new Font("Times New Roman", Font.BOLD, 15));
+		lblFormas.setBounds(10, 57, 124, 14);
+		panel.add(lblFormas);
+ 
 		JComboBox<String> formas = new JComboBox<>(shapes);
 		formas.setBounds(11, 80, 179, 22);
 		panel.add(formas);
 		formas.addActionListener(e -> {
 			int index = formas.getSelectedIndex();
 			if (index > 0) {
-				motor.shape(index - 1);
+				controller.selecionarForma(index - 1);
 			}
 		});
-		
-		// Lista de transformações lineares básicas
-		JLabel lblFormas = new JLabel("Forma geométrica");
-		lblFormas.setForeground(new Color(255, 255, 255));
-		lblFormas.setFont(new Font("Times New Roman", Font.BOLD, 15));
-		lblFormas.setBounds(10, 57, 124, 14);
-		panel.add(lblFormas);
-		
-		transforms = new JComboBox<>(transDefault);
+ 
+		JLabel lbltransfLineares = new JLabel("Matriz de transformação");
+		lbltransfLineares.setForeground(Color.WHITE);
+		lbltransfLineares.setFont(new Font("Times New Roman", Font.BOLD, 15));
+		lbltransfLineares.setBounds(10, 119, 180, 14);
+		panel.add(lbltransfLineares);
+ 
+		transforms = new JComboBox<>(transformacoes);
 		transforms.setBounds(9, 139, 179, 22);
-		panel.add(transforms);
-		transforms.addActionListener(e -> {
-		    configurarControles();
+		// override do renderer para utilizar getNome() nas transformacoes
+		transforms.setRenderer(new DefaultListCellRenderer() {
+			private static final long serialVersionUID = 1L;
+ 
+			@Override
+			public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+				String texto = (value instanceof Transformacao) ? ((Transformacao) value).getNome() : String.valueOf(value);
+				return super.getListCellRendererComponent(list, texto, index, isSelected, cellHasFocus);
+			}
 		});
-		
-		//--------- Tabela (Matriz) ---------------------
-		String[] colunas = {"c1", "c2"};
-        matriz = new Matriz(1, 0, 0, 1);
-		table = new JTable(matriz.getObjeto(), colunas);
-		
-		table.setFont(new Font("Tahoma", Font.PLAIN, 13));
-		table.setTableHeader(null);
-		table.setFillsViewportHeight(true);
-		table.setRowHeight(48);
-		
-		// centraliza o texto na tabela
-		DefaultTableCellRenderer center = new DefaultTableCellRenderer();
-		center.setHorizontalAlignment(JLabel.CENTER);
-		table.setDefaultRenderer(Object.class, center);
-		
-		// scroll pane para a tabela
-		JScrollPane scrollPane = new JScrollPane(table);
-		scrollPane.setBounds(10, 186, 100, 100);
-		panel.add(scrollPane);
-		
+		panel.add(transforms);
+		transforms.addActionListener(e -> configurarControles());
+ 
+		// --------- Painel: matriz atual ---------------------
+		matrizPanel = new MatrizPanel(controller.getMatrizAtual());
+		matrizPanel.setBounds(10, 186, 100, 100);
+		matrizPanel.setEditorListener(controller::editarValorMatriz);
+		panel.add(matrizPanel);
+ 
 		JLabel lblMatriz = new JLabel("Matriz");
-		lblMatriz.setForeground(new Color(255, 255, 255));
+		lblMatriz.setForeground(Color.WHITE);
 		lblMatriz.setFont(new Font("Times New Roman", Font.BOLD, 15));
 		lblMatriz.setBounds(10, 171, 46, 14);
 		panel.add(lblMatriz);
-		
-		// determinante da matriz
-		lblDeterminante = new JLabel("Determinante: " + matriz.determinante());
+ 
+		lblDeterminante = new JLabel();
 		lblDeterminante.setForeground(Color.WHITE);
-		lblDeterminante.setFont(new Font("Times New Roman", Font.BOLD, 15));
-		lblDeterminante.setBounds(118, 186, 140, 14);
-		panel.add(lblDeterminante);
+		lblDeterminante.setFont(new Font("Times New Roman", Font.BOLD, 13));
+		lblDeterminante.setBounds(118, 171, 140, 14);
+		lblDeterminante.setToolTipText("<html> det = 0 -> transformação comprime o plano em uma reta ou ponto.<br>"
+				+ "A matriz não é invertível.<br>"
+				+ "det > 0 -> A orientação do sistema é preservada. A matriz é invertível.<br>"
+				+ "det < 0 -> Há inversão de orientação (reflexão). A matriz é invertível.<br><html>");
 		
-		// área de texto para descrições educacionais
+		panel.add(lblDeterminante);
+ 
+		// vetores base transformados (i e j)
+		vetoresBase = new JLabel();
+		vetoresBase.setForeground(Color.WHITE);
+		vetoresBase.setFont(new Font("Times New Roman", Font.PLAIN, 11));
+		vetoresBase.setBounds(116, 186, 140, 17);
+		vetoresBase.setToolTipText(
+				"Para onde vão os vetores da base (1,0) e (0,1) após a "
+						+ "transformação");
+		panel.add(vetoresBase);
+ 
 		descricao = new JTextArea();
-		descricao.setBounds(120, 202, 124, 84);
+		descricao.setBounds(118, 201, 130, 134);
 		panel.add(descricao);
 		descricao.setEnabled(false);
 		descricao.setEditable(false);
-		descricao.setLineWrap(true);       // ativa a quebra automática
-		descricao.setWrapStyleWord(true);  // quebra entre palavras, não no meio delas
+		descricao.setLineWrap(true);
+		descricao.setWrapStyleWord(true);
+		descricao.setFont(new Font("Tahoma", Font.PLAIN, 11));
+		descricao.setForeground(Color.WHITE);
 		descricao.setBackground(new Color(62, 75, 142));
-		descricao.setText(matriz.descricaoDet());
-		
-		// painel auxiliar para sliders
+ 
 		panelAuxiliar = new JPanel();
 		panelAuxiliar.setBackground(new Color(62, 75, 142));
-		panelAuxiliar.setBounds(10, 297, 238, 69);
+		panelAuxiliar.setBounds(10, 337, 238, 60);
 		panel.add(panelAuxiliar);
 		panelAuxiliar.setLayout(new GridLayout(3, 0, 0, 0));
-		
-		// listener para alterações na tabela
-		table.getModel().addTableModelListener(e -> {
-			int linha = e.getFirstRow();
-			int coluna = e.getColumn();
-			
-			try {
-				double valor = Double.parseDouble(table.getValueAt(linha, coluna).toString());
-				
-				if(matriz.getValor(linha, coluna) != valor) { // só atualiza se houver alteração
-					matriz.setValor(valor, linha, coluna);
-					lblDeterminante.setText("Determinante: " + matriz.determinante());	// atualiza o determinante
-					descricao.setText(matriz.descricaoDet());
-					
-					float[][] valores = matriz.toFloat();
-					motor.update(valores[0][0], valores[0][1], valores[1][0],  valores[1][1]);
-				}
-
-			} catch(NullPointerException e1){
-				JOptionPane.showMessageDialog(this, "Insira um valor!", "Alerta", 
-						JOptionPane.WARNING_MESSAGE);
-			} catch(NumberFormatException e2) {
-				JOptionPane.showMessageDialog(this, "Insira um valor numérico!", "Alerta",
-						JOptionPane.WARNING_MESSAGE);
-			}
-		});
-		
-		//------------ Botão reset ----------------------------
+ 
+		lblAuxiliar = new JLabel("");
+		lblAuxiliar.setForeground(Color.WHITE);
+		lblAuxiliar.setFont(new Font("Times New Roman", Font.BOLD, 15));
+		panelAuxiliar.add(lblAuxiliar);
+ 
+		// ------------ Botão reset (matriz atual) ----------------------------
 		JButton reset = new JButton("Resetar");
 		reset.setBounds(69, 541, 131, 39);
 		reset.addActionListener(e -> {
-			matriz.setValores(1, 0, 0, 1);
 			formas.setSelectedIndex(0);
 			transforms.setSelectedIndex(0);
-			
-			atualizarTabela();
+			controller.resetarMatrizAtual();
 			panelAuxiliar.removeAll();
+			panelAuxiliar.add(lblAuxiliar);
 		});
 		panel.add(reset);
-		
-		// label auxiliar
-		lblAuxiliar = new JLabel("");
-		lblAuxiliar.setForeground(new Color(255, 255, 255));
-		lblAuxiliar.setFont(new Font("Times New Roman", Font.BOLD, 15));
-		lblAuxiliar.setBounds(20, 297, 140, 14);
-		panelAuxiliar.add(lblAuxiliar);
-		
-		//--------- Tabela (Matriz de transformações acumuladas) ---------------------
-		acumulada = new Matriz(1, 0, 0, 1);
-		table2 = new JTable(acumulada.getObjeto(), colunas);
-				
-		table2.setFont(new Font("Tahoma", Font.PLAIN, 13));
-		table2.setTableHeader(null);
-		table2.setFillsViewportHeight(true);
-		table2.setRowHeight(48);
-				
-		// centraliza o texto na tabela
-		center.setHorizontalAlignment(JLabel.CENTER);
-		table2.setDefaultRenderer(Object.class, center);
-				
-		// scroll pane para a tabela
-		JScrollPane scrollPane_2 = new JScrollPane(table2);
-		scrollPane_2.setBounds(44, 398, 100, 100);
-		panel.add(scrollPane_2);
-				
+ 
+		// --------- Painel: matriz acumulada ---------------------
+		acumuladaPanel = new MatrizPanel(controller.getAcumulada());
+		acumuladaPanel.setBounds(43, 420, 100, 100);
+		acumuladaPanel.setEditavel(false);
+		panel.add(acumuladaPanel);
+ 
 		JLabel lblMatrizAcumulada = new JLabel("Matriz Acumulada");
-		lblMatrizAcumulada.setForeground(new Color(255, 255, 255));
+		lblMatrizAcumulada.setForeground(Color.WHITE);
 		lblMatrizAcumulada.setFont(new Font("Times New Roman", Font.BOLD, 15));
-		lblMatrizAcumulada.setBounds(31, 382, 135, 14);
+		lblMatrizAcumulada.setBounds(31, 401, 135, 14);
+		lblMatrizAcumulada.setToolTipText(
+				"Guarda o produto de todas as transformações aplicadas com "
+						+ "\"Aplicar\", na ordem em que foram aplicadas — assim "
+						+ "dá pra compor várias transformações em sequência.");
 		panel.add(lblMatrizAcumulada);
-		
-		JButton btnNewButton = new JButton("Aplicar");
-		btnNewButton.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-			}
-		});
-		btnNewButton.setBounds(159, 414, 89, 23);
-		panel.add(btnNewButton);
-		btnNewButton.addActionListener(e -> {
-		    acumulada = matriz.multiplicar(acumulada);
-		    atualizarAcumulada();
-
-		    float[][] m = acumulada.toFloat();
-		    motor.update(
-		        m[0][0],
-		        m[0][1],
-		        m[1][0],
-		        m[1][1]
-		    );
-		});
-		
-		JButton btnNewButton_1 = new JButton("Resetar");
-		btnNewButton_1.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				acumulada.setValores(1, 0, 0, 1);
-				atualizarAcumulada();
-			}
-		});
-		btnNewButton_1.setBounds(159, 446, 89, 23);
-		panel.add(btnNewButton_1);
-		
+ 
+		JButton btnAplicar = new JButton("Aplicar");
+		btnAplicar.setBounds(158, 445, 89, 23);
+		btnAplicar.setToolTipText("Multiplica a matriz atual pela acumulada");
+		btnAplicar.addActionListener(e -> controller.aplicarNaAcumulada());
+		panel.add(btnAplicar);
+ 
+		JButton btnResetarAcumulada = new JButton("Resetar");
+		btnResetarAcumulada.setBounds(159, 475, 89, 23);
+		btnResetarAcumulada.addActionListener(e -> controller.resetarAcumulada());
+		panel.add(btnResetarAcumulada);
+ 
+		// estado inicial da UI
+		onMatrizAtualizada(controller.getMatrizAtual());
+		onAcumuladaAtualizada(controller.getAcumulada());
+		configurarControles();
 	}
 	//--------------- FUNÇÕES AUXILIARES -----------------
 	// retorna o canvas para motor gráfico
 	public Canvas getCanvas() {
 		return glCanvas;
 	}
-	
-	// atualiza a tabela e o motor
-	private void atualizarTabela() {
-	    Object[][] dados = matriz.getObjeto();
-	    for(int i=0;i<2;i++)
-	        for(int j=0;j<2;j++)
-	            table.setValueAt(dados[i][j], i, j);
 
-	    float[][] m = matriz.toFloat();
-
-	    motor.update(
-	        m[0][0],
-	        m[0][1],
-	        m[1][0],
-	        m[1][1]
-	    );
-
-	    lblDeterminante.setText(
-	        "Determinante: " + matriz.determinante()
-	    );
-
-	    descricao.setText(
-	        matriz.descricaoDet()
-	    );
-	}
-	// atualiza a tabela da matriz acumulada e o motor
-	private void atualizarAcumulada() {
-
-	    Object[][] dados = acumulada.getObjeto();
-
-	    for(int i=0;i<2;i++)
-	        for(int j=0;j<2;j++)
-	            table2.setValueAt(dados[i][j], i, j);
-	}
-	
-	// controles para transformações lineares básicas
+	// configuração do painel de sliders e descrição
 	private void configurarControles() {
-	    panelAuxiliar.removeAll();
-	    lblAuxiliar.setText("");
-	    panelAuxiliar.add(lblAuxiliar);
-	    
-	    if(transforms.getSelectedIndex() == 0) {
-	    	table.setEnabled(true);
-	    	panelAuxiliar.removeAll();
-	    } else {
-	    	table.setEnabled(false);
-	    }
-	    switch (transforms.getSelectedIndex()) {
-	        case 1: // Identidade
-	            matriz.setValores(1, 0, 0, 1);
-	            atualizarTabela();
-	            break;
-
-	        case 2: // Escala
-	            criarSliderEscala();
-	            break;
-	        	
-	        case 3: // Rotação
-	            criarSliderRotacao();
-	            break;
-
-	        case 4: // Reflexão no eixo X
-	        	matriz.setValores(1, 0, 0, -1);
-	        	atualizarTabela();
-	        	break;
-	        	
-	        case 5: // Reflexão no eixo Y
-	        	matriz.setValores(-1, 0, 0, 1);
-	        	atualizarTabela();
-	        	break;
-
-	        case 6: // Reflexão na origem
-	        	matriz.setValores(-1, 0, 0, -1);
-	        	atualizarTabela();
-	        	break;
-	        	
-	        case 7: // Cisalhamento horizontal
-	            criarSliderCisalhamentoH();
-	            break;
-	            
-	        case 8: // Cisalhamento vertical
-	            criarSliderCisalhamentoV();
-	            break;          
-	        
-	        case 9: // Projeção em X
-	        	matriz.setValores(1, 0, 0, 0);
-	        	atualizarTabela();
-	        	break;
-	        
-	        case 10: // Projeção em Y
-	        	matriz.setValores(0, 0, 0, 1);
-	        	atualizarTabela();
-	        	break;
-	    }
-
-	    panelAuxiliar.revalidate();
-	    panelAuxiliar.repaint();
+		panelAuxiliar.removeAll();
+		lblAuxiliar.setText("");
+		panelAuxiliar.add(lblAuxiliar);
+ 
+		Transformacao selecionada = (Transformacao) transforms.getSelectedItem();
+ 
+		if (selecionada.isPersonalizado()) {
+			matrizPanel.setEditavel(true);
+		} else {
+			matrizPanel.setEditavel(false);
+			int n = selecionada.getNumeroSliders();
+			if (n == 0) {
+				controller.aplicarTransformacao(selecionada);
+			} else {
+				criarSliders(selecionada, n);
+			}
+		}
+ 
+		atualizarDescricao(selecionada);
+ 
+		panelAuxiliar.revalidate();
+		panelAuxiliar.repaint();
 	}
-	
-	// slider para escala interativa
-	private void criarSliderEscala() {
-	    JSlider sliderx = new JSlider(-500, 500, 100);
-	    JSlider slidery = new JSlider(-500, 500, 100);
-	    sliderx.addChangeListener(e -> {
-	        double sx = sliderx.getValue()/100.0;
-	        double sy = slidery.getValue()/100.0;
-	        
-	        matriz.setValores(
-	            sx,0,
-	            0,sy
-	        );
-	        atualizarTabela();
-	        lblAuxiliar.setText("X: " + sx + " Y: " + sy);
-	    });
-
-	    slidery.addChangeListener(e -> {
-	        double sx = sliderx.getValue()/100.0;
-	        double sy = slidery.getValue()/100.0;
-	        
-	        matriz.setValores(
-	            sx,0,
-	            0,sy
-	        );
-	        atualizarTabela();
-	        lblAuxiliar.setText("X: " + sx + " Y: " + sy);
-	    });
-	    
-	    panelAuxiliar.add(sliderx);
-	    panelAuxiliar.add(slidery);
+ 
+	// cria os sliders necessários para a transformação interativa
+	private void criarSliders(Transformacao t, int quantidade) {
+		JSlider[] sliders = new JSlider[quantidade];
+ 
+		for (int i = 0; i < quantidade; i++) {
+			int min = (int) Math.round(t.getSliderMin() * 100);
+			int max = (int) Math.round(t.getSliderMax() * 100);
+			int inicial = (int) Math.round(t.getSliderInicio() * 100);
+ 
+			JSlider slider = new JSlider(min, max, inicial);
+			sliders[i] = slider;
+			panelAuxiliar.add(slider);
+		}
+ 
+		// listeners 
+		Runnable aoMudar = () -> {
+			double[] valores = new double[quantidade];
+			StringBuilder texto = new StringBuilder();
+			for (int i = 0; i < quantidade; i++) {
+				valores[i] = sliders[i].getValue() / 100.0;
+				texto.append(valores[i] + "   ");
+			}
+			
+			controller.aplicarTransformacao(t, valores);
+			lblAuxiliar.setText(texto.toString());
+		};
+ 
+		for (JSlider slider : sliders) {
+			slider.addChangeListener(e -> aoMudar.run());
+		}
+ 
+		aoMudar.run();
 	}
-	
-	// slider para rotação interativa
-	private void criarSliderRotacao() {
-	    JSlider slider = new JSlider(0, 360, 0);
-
-	    slider.addChangeListener(e -> {
-	    	lblAuxiliar.setText("Ângulo:");
-	        double angulo =
-	            Math.toRadians(slider.getValue());
-
-	        matriz.setValores(
-	            Math.cos(angulo),
-	            -Math.sin(angulo),
-	            Math.sin(angulo),
-	            Math.cos(angulo)
-	        );
-
-	        atualizarTabela();
-	        lblAuxiliar.setText("Ângulo: " + slider.getValue());
-	    });
-
-	    panelAuxiliar.add(slider);
+ 
+	// atualiza descrição da matriz
+	private void atualizarDescricao(Transformacao t) {
+		descricao.setText(t.getDescricao());
 	}
-	
-	// slider para cisalhamento vertical interativo
-	private void criarSliderCisalhamentoV() {
-	    JSlider slider = new JSlider(-500, 500, 0);
-
-	    slider.addChangeListener(e -> {
-	        double s = slider.getValue()/100.0;
-
-	        matriz.setValores(
-		            1,0,
-		            s,1
-		    );
-
-	        atualizarTabela();
-	        lblAuxiliar.setText("" + s);
-	    });
-
-	    panelAuxiliar.add(slider);
+ 
+	// --------------- TransformListener -----------------
+ 
+	@Override
+	public void onMatrizAtualizada(Matriz matriz) {
+		matrizPanel.atualizar(matriz);
+		lblDeterminante.setText("Det: " + arredondar(matriz.determinante()));
+ 
+		double[] i = matriz.getImagemVetorI();
+		double[] j = matriz.getImagemVetorJ();
+		vetoresBase.setText("i → (" + arredondar(i[0]) + ", " + arredondar(i[1])
+				+ ") j → (" + arredondar(j[0]) + ", " + arredondar(j[1]) + ")");
 	}
-	
-	// slider para cisalhamento horizontal interativo
-	private void criarSliderCisalhamentoH() {
-	    JSlider slider = new JSlider(-500, 500, 0);
-
-	    slider.addChangeListener(e -> {
-	        double s = slider.getValue()/100.0;
-
-	        matriz.setValores(
-		            1,s,
-		            0,1
-		    );
-
-	        atualizarTabela();
-	        lblAuxiliar.setText("" + s);
-	    });
-
-	    panelAuxiliar.add(slider);
+ 
+	@Override
+	public void onAcumuladaAtualizada(Matriz acumulada) {
+		acumuladaPanel.atualizar(acumulada);
+	}
+ 
+	private double arredondar(double valor) {
+		return Math.round(valor * 100.0) / 100.0;
 	}
 }

@@ -1,5 +1,5 @@
 package model;
-
+// Representa a matriz 2x2 utilizada nas trasnformações lineares
 public class Matriz {
 	private double[][] valores;
 	
@@ -12,11 +12,32 @@ public class Matriz {
 		this.valores = matriz;
 	}
 	
+	public Matriz(double[][] valores) {
+		if (valores == null || valores.length != 2 || valores[0].length != 2 || valores[1].length != 2) {
+			throw new IllegalArgumentException("Matriz deve ser 2x2");
+		}
+
+		this.valores = new double[][] {
+				{valores[0][0], valores[0][1]},
+				{valores[1][0], valores[1][1]}
+		};
+	}
+	
+	public static Matriz identidade() {
+		return new Matriz(1, 0, 0, 1);
+	}
+	
+	// set de um único valor da matriz
 	public void setValor(double val, int linha, int coluna) {
 		this.valores[linha][coluna] = val;
 	}
 	
+	// set de todos os valores da matriz
 	public void setValores(double[][] valores) {
+		if (valores == null || valores.length != 2 || valores[0].length != 2 || valores[1].length != 2) {
+			throw new IllegalArgumentException("Matriz deve ser 2x2");
+		}
+		
 		this.valores = valores;
 	}
 	
@@ -29,14 +50,20 @@ public class Matriz {
 		this.valores = matriz;
 	}
 	
+	// get de um único valor da matriz
 	public double getValor(int linha, int coluna) {
 		return this.valores[linha][coluna];
 	}
 	
-	public double[][] getMatriz(){
-		return this.valores;
+	// get de todos os valores da matriz
+	public double[][] getValores() {
+		return new double[][] {
+				{valores[0][0], valores[0][1]},
+				{valores[1][0], valores[1][1]}
+		};
 	}
 	
+	// retorna a matriz como objeto para tabelas
     public Object[][] getObjeto() {
         Object[][] dados = new Object[2][2];
 
@@ -49,34 +76,23 @@ public class Matriz {
         return dados;
     }
     
+    // retorna o determinante da matriz
     public double determinante() {
         return valores[0][0] * valores[1][1]
              - valores[0][1] * valores[1][0];
     }
     
-    public String descricaoDet() {
-    	double det = determinante();
-    	
-        if (det == 0) {
-            return """
-                A transformação comprime o plano em uma reta ou ponto.
-                A matriz não é invertível.
-                """;
-        }
-
-        if (det > 0) {
-            return """
-                A orientação do sistema é preservada.
-                A matriz é invertível.
-                """;
-        }
-
-        return """
-            Há inversão de orientação (reflexão).
-            A matriz é invertível.
-            """;
-    }
+    // retorna o vetor base i da matriz (0, 1)
+    public double[] getImagemVetorI() {
+		return new double[] {valores[0][0], valores[1][0]};
+	}
     
+    // retorna o vetor base j da matriz (1, 0)
+	public double[] getImagemVetorJ() {
+		return new double[] {valores[0][1], valores[1][1]};
+	}
+	
+	// retorna a matriz como float
     public float[][] toFloat() {
     	double[][] matriz = this.valores;
         int linhas = matriz.length;
@@ -93,8 +109,8 @@ public class Matriz {
         return resultado;
     }
     
+    // multiplicação de matrizes para composição de trasnformações
     public Matriz multiplicar(Matriz outra) {
-
         double a11 = getValor(0,0);
         double a12 = getValor(0,1);
         double a21 = getValor(1,0);
