@@ -32,11 +32,11 @@ public class TelaInicial extends JFrame {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Color BG = new Color(0x11111b);
-	private static final Color PANEL_BG = new Color(0x181825);
-	private static final Color TEXT = new Color(0xcdd6f4);
-	private static final Color MUTED = new Color(0x9399b2);
-	private static final Color ACCENT = new Color(0x89b4fa);
+	private static final Color BG = new Color(166, 188, 201);
+	private static final Color PANEL_BG = new Color(61, 21, 52);
+	private static final Color TEXT = new Color(246, 224, 182);
+	private static final Color MUTED = new Color(255, 244, 235);
+	private static final Color ACCENT = new Color(62, 75, 142);
 
 	public TelaInicial(Runnable aoIniciar) {
 		setTitle("Visualizador de Transformações Lineares");
@@ -54,25 +54,25 @@ public class TelaInicial extends JFrame {
 	private JPanel buildCentro(Runnable aoIniciar) {
 		JPanel centro = new JPanel();
 		centro.setLayout(new BoxLayout(centro, BoxLayout.Y_AXIS));
-		centro.setBackground(new Color(62, 75, 142));
+		centro.setBackground(PANEL_BG);
 		centro.setBorder(new EmptyBorder(48, 48, 24, 48));
 
 		JLabel titulo = new JLabel("Transformações Lineares");
 		titulo.setFont(new Font("Segoe UI", Font.BOLD, 26));
-		titulo.setForeground(new Color(255, 255, 255));
+		titulo.setForeground(TEXT);
 		titulo.setAlignmentX(0.5f);
 
 		JLabel subtitulo = new JLabel("Visualizador educacional — POO + Computação Gráfica");
 		subtitulo.setFont(new Font("Segoe UI", Font.BOLD, 13));
-		subtitulo.setForeground(new Color(255, 255, 255));
+		subtitulo.setForeground(TEXT);
 		subtitulo.setAlignmentX(0.5f);
 
 		JTextArea resumo = new JTextArea(
 				"      Explore translação, rotação, escala, reflexão e cisalhamento ");
 		resumo.setTabSize(3);
 		resumo.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-		resumo.setForeground(new Color(255, 255, 255));
-		resumo.setBackground(new Color(62, 75, 142));
+		resumo.setForeground(MUTED);
+		resumo.setBackground(PANEL_BG);
 		resumo.setLineWrap(true);
 		resumo.setWrapStyleWord(true);
 		resumo.setEditable(false);
@@ -83,8 +83,8 @@ public class TelaInicial extends JFrame {
 
 		JButton iniciar = new JButton("Iniciar visualizador");
 		iniciar.setFont(new Font("Segoe UI", Font.BOLD, 14));
-		iniciar.setForeground(new Color(62, 75, 142));
-		iniciar.setBackground(new Color(255, 255, 255));
+		iniciar.setForeground(PANEL_BG);
+		iniciar.setBackground(BG);
 		iniciar.setFocusPainted(false);
 		iniciar.setBorder(new EmptyBorder(12, 24, 12, 24));
 		iniciar.setAlignmentX(0.5f);
@@ -118,15 +118,15 @@ public class TelaInicial extends JFrame {
 	private JPanel buildRodape() {
 		JPanel rodape = new JPanel(new GridLayout(1, 1));
 		rodape.setForeground(new Color(62, 75, 142));
-		rodape.setBackground(new Color(255, 255, 255));
+		rodape.setBackground(MUTED);
 		rodape.setBorder(new EmptyBorder(10, 16, 10, 16));
 
 		JLabel creditos = new JLabel(
 				"Projeto interdisciplinar — Programação Orientada a Objetos & Computação Gráfica",
 				SwingConstants.CENTER);
-		creditos.setBackground(new Color(192, 192, 192));
+		creditos.setBackground(MUTED);
 		creditos.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-		creditos.setForeground(new Color(62, 75, 142));
+		creditos.setForeground(ACCENT);
 
 		rodape.add(creditos);
 		return rodape;

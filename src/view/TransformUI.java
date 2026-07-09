@@ -46,11 +46,17 @@ public class TransformUI extends JFrame implements TransformListener{
 	private MatrizPanel matrizPanel;
 	private MatrizPanel acumuladaPanel;
 	
+	private static final Color BG = new Color(166, 188, 201);
+	private static final Color PANEL_BG = new Color(61, 21, 52);
+	private static final Color TEXT = new Color(246, 224, 182);
+	private static final Color MUTED = new Color(255, 244, 235);
+	private static final Color ACCENT = new Color(62, 75, 142);
+	
 	public TransformUI(MotorGrafico motor) {
 		this.controller = new TransformController(motor);
 		this.controller.setListener(this);
  
-		getContentPane().setBackground(new Color(166, 188, 201));
+		getContentPane().setBackground(BG);
  
 		// ------------ Canvas para o OpenGL ------------------------
 		glCanvas = new Canvas();
@@ -64,19 +70,19 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		// ------------ Painel de opções/ferramentas ----------------
 		Panel panel = new Panel();
-		panel.setBackground(new Color(62, 75, 142));
+		panel.setBackground(PANEL_BG);
 		panel.setBounds(766, 10, 258, 591);
 		getContentPane().add(panel);
 		panel.setLayout(null);
  
 		JLabel lbl1 = new JLabel(" Transformações Lineares");
-		lbl1.setForeground(Color.WHITE);
+		lbl1.setForeground(TEXT);
 		lbl1.setFont(new Font("Times New Roman", Font.BOLD, 22));
 		lbl1.setBounds(0, 0, 258, 46);
 		panel.add(lbl1);
  
 		JLabel lblFormas = new JLabel("Forma geométrica");
-		lblFormas.setForeground(Color.WHITE);
+		lblFormas.setForeground(TEXT);
 		lblFormas.setFont(new Font("Times New Roman", Font.BOLD, 15));
 		lblFormas.setBounds(10, 57, 124, 14);
 		panel.add(lblFormas);
@@ -92,7 +98,7 @@ public class TransformUI extends JFrame implements TransformListener{
 		});
  
 		JLabel lbltransfLineares = new JLabel("Matriz de transformação");
-		lbltransfLineares.setForeground(Color.WHITE);
+		lbltransfLineares.setForeground(TEXT);
 		lbltransfLineares.setFont(new Font("Times New Roman", Font.BOLD, 15));
 		lbltransfLineares.setBounds(10, 119, 180, 14);
 		panel.add(lbltransfLineares);
@@ -119,13 +125,13 @@ public class TransformUI extends JFrame implements TransformListener{
 		panel.add(matrizPanel);
  
 		JLabel lblMatriz = new JLabel("Matriz");
-		lblMatriz.setForeground(Color.WHITE);
+		lblMatriz.setForeground(TEXT);
 		lblMatriz.setFont(new Font("Times New Roman", Font.BOLD, 15));
 		lblMatriz.setBounds(10, 171, 46, 14);
 		panel.add(lblMatriz);
  
 		lblDeterminante = new JLabel();
-		lblDeterminante.setForeground(Color.WHITE);
+		lblDeterminante.setForeground(TEXT);
 		lblDeterminante.setFont(new Font("Times New Roman", Font.BOLD, 13));
 		lblDeterminante.setBounds(118, 171, 140, 14);
 		lblDeterminante.setToolTipText("<html> det = 0 -> transformação comprime o plano em uma reta ou ponto.<br>"
@@ -137,7 +143,7 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		// vetores base transformados (i e j)
 		vetoresBase = new JLabel();
-		vetoresBase.setForeground(Color.WHITE);
+		vetoresBase.setForeground(TEXT);
 		vetoresBase.setFont(new Font("Times New Roman", Font.PLAIN, 11));
 		vetoresBase.setBounds(116, 186, 140, 17);
 		vetoresBase.setToolTipText(
@@ -153,17 +159,17 @@ public class TransformUI extends JFrame implements TransformListener{
 		descricao.setLineWrap(true);
 		descricao.setWrapStyleWord(true);
 		descricao.setFont(new Font("Tahoma", Font.PLAIN, 11));
-		descricao.setForeground(Color.WHITE);
-		descricao.setBackground(new Color(62, 75, 142));
+		descricao.setForeground(TEXT);
+		descricao.setBackground(PANEL_BG);
  
 		panelAuxiliar = new JPanel();
-		panelAuxiliar.setBackground(new Color(62, 75, 142));
+		panelAuxiliar.setBackground(PANEL_BG);
 		panelAuxiliar.setBounds(10, 337, 238, 60);
 		panel.add(panelAuxiliar);
 		panelAuxiliar.setLayout(new GridLayout(3, 0, 0, 0));
  
 		lblAuxiliar = new JLabel("");
-		lblAuxiliar.setForeground(Color.WHITE);
+		lblAuxiliar.setForeground(TEXT);
 		lblAuxiliar.setFont(new Font("Times New Roman", Font.BOLD, 15));
 		panelAuxiliar.add(lblAuxiliar);
  
@@ -177,6 +183,7 @@ public class TransformUI extends JFrame implements TransformListener{
 			panelAuxiliar.removeAll();
 			panelAuxiliar.add(lblAuxiliar);
 		});
+		reset.setBackground(TEXT);
 		panel.add(reset);
  
 		// --------- Painel: matriz acumulada ---------------------
@@ -186,7 +193,7 @@ public class TransformUI extends JFrame implements TransformListener{
 		panel.add(acumuladaPanel);
  
 		JLabel lblMatrizAcumulada = new JLabel("Matriz Acumulada");
-		lblMatrizAcumulada.setForeground(Color.WHITE);
+		lblMatrizAcumulada.setForeground(TEXT);
 		lblMatrizAcumulada.setFont(new Font("Times New Roman", Font.BOLD, 15));
 		lblMatrizAcumulada.setBounds(31, 401, 135, 14);
 		lblMatrizAcumulada.setToolTipText(
@@ -199,11 +206,13 @@ public class TransformUI extends JFrame implements TransformListener{
 		btnAplicar.setBounds(158, 445, 89, 23);
 		btnAplicar.setToolTipText("Multiplica a matriz atual pela acumulada");
 		btnAplicar.addActionListener(e -> controller.aplicarNaAcumulada());
+		btnAplicar.setBackground(BG);
 		panel.add(btnAplicar);
  
 		JButton btnResetarAcumulada = new JButton("Resetar");
 		btnResetarAcumulada.setBounds(159, 475, 89, 23);
 		btnResetarAcumulada.addActionListener(e -> controller.resetarAcumulada());
+		btnResetarAcumulada.setBackground(BG);
 		panel.add(btnResetarAcumulada);
  
 		// estado inicial da UI
