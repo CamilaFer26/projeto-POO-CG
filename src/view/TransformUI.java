@@ -225,7 +225,7 @@ public class TransformUI extends JFrame{
 	    );
 	}
 	
-	// controles para trasnformações lineares básicas
+	// controles para transformações lineares básicas
 	private void configurarControles() {
 	    panelAuxiliar.removeAll();
 	    
@@ -289,8 +289,8 @@ public class TransformUI extends JFrame{
 	
 	// slider para escala interativa
 	private void criarSliderEscala() {
-	    JSlider sliderx = new JSlider(0, 200, 100);
-	    JSlider slidery = new JSlider(0, 200, 100);
+	    JSlider sliderx = new JSlider(0, 500, 100);
+	    JSlider slidery = new JSlider(0, 500, 100);
 	    sliderx.addChangeListener(e -> {
 	        double sx = sliderx.getValue()/100.0;
 	        double sy = slidery.getValue()/100.0;
