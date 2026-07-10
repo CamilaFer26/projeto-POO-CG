@@ -88,7 +88,6 @@ pacman -S mingw-w64-x86_64-glew
 ```
 
 > **Importante:** Essas bibliotecas serão utilizadas pelo motor gráfico em C++.
----
 
 ---
 ## Compilação
