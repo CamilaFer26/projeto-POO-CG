@@ -88,7 +88,6 @@ pacman -S mingw-w64-x86_64-glew
 ```
 
 > **Importante:** Essas bibliotecas serão utilizadas pelo motor gráfico em C++.
----
 
 ---
 ## Compilação
@@ -104,21 +103,21 @@ Este comando:
 ---
 ### 2. Compilar o motor gráfico em C++
 ```bash
-g++ -shared -o lib/motor.dll native/motor.cpp ^
--Iheaders ^
--I"%JAVA_HOME%\include" ^
--I"%JAVA_HOME%\include\win32" ^
--I"C:\glew\include" ^
--I"C:\glfw\include" ^
--L"C:\glew\lib\Release\x64" ^
--L"C:\glfw\lib-mingw-w64" ^
--L"%JAVA_HOME%\lib" ^
--lglew32 ^
--lglfw3 ^
--lgdi32 ^
--luser32 ^
--lshell32 ^
--lopengl32 ^
+g++ -shared -o lib/motor.dll native/motor.cpp \
+-Iheaders \
+-I"$JAVA_HOME/include" \
+-I"$JAVA_HOME/include/win32" \
+-I"/c/glew/include" \
+-I"/c/glfw/include" \
+-L"/c/glew/lib/Release/x64" \
+-L"/c/glfw/lib-mingw-w64" \
+-L"$JAVA_HOME/lib" \
+-lglew32 \
+-lglfw3 \
+-lgdi32 \
+-luser32 \
+-lshell32 \
+-lopengl32 \
 -ljawt
 ```
 > Esses caminhos devem ser adaptados conforme a instalação do usuário.
