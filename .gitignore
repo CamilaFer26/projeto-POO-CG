@@ -1,0 +1,11 @@
+# Arquivos compilados
+*.class
+
+# Diretórios de compilação
+bin/
+build/
+
+# Arquivos do Eclipse
+.settings/
+.project
+.classpath
