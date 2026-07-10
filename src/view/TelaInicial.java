@@ -68,7 +68,7 @@ public class TelaInicial extends JFrame {
 		subtitulo.setAlignmentX(0.5f);
 
 		JTextArea resumo = new JTextArea(
-				"      Explore translação, rotação, escala, reflexão e cisalhamento ");
+				"      Explore rotação, escala, reflexão e cisalhamento ");
 		resumo.setTabSize(3);
 		resumo.setFont(new Font("Segoe UI", Font.PLAIN, 15));
 		resumo.setForeground(MUTED);
@@ -136,7 +136,7 @@ public class TelaInicial extends JFrame {
 		JDialog dialog = new JDialog(this, "Sobre o projeto", true);
 		dialog.setSize(520, 420);
 		dialog.setLocationRelativeTo(this);
-		dialog.getContentPane().setBackground(new Color(62, 75, 142));
+		dialog.getContentPane().setBackground(TEXT);
 		dialog.getContentPane().setLayout(new BorderLayout());
 
 		JTextArea texto = new JTextArea(
@@ -151,8 +151,8 @@ public class TelaInicial extends JFrame {
 				+ "Equipe POO: Camila Fernada, Erick Batista, Lara Pereira\n"
 				+ "Equipe CG: Hemilly Uchoa, Mikael Gomes\n");
 		texto.setFont(new Font("Segoe UI Bold", Font.PLAIN, 13));
-		texto.setForeground(new Color(255, 255, 255));
-		texto.setBackground(new Color(62, 75, 142));
+		texto.setForeground(PANEL_BG);
+		texto.setBackground(TEXT);
 		texto.setLineWrap(true);
 		texto.setWrapStyleWord(true);
 		texto.setEditable(false);
