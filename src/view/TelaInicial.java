@@ -70,7 +70,7 @@ public class TelaInicial extends JFrame {
 		subtitulo.setAlignmentX(0.5f);
 
 		JTextArea resumo = new JTextArea(
-				"          Explore rotação, escala, reflexão e cisalhamento");
+				"             Explore rotação, escala, reflexão e cisalhamento");
 		resumo.setTabSize(3);
 		resumo.setFont(Fontes.quantico_italic(15f));
 		resumo.setForeground(MUTED);
