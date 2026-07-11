@@ -86,12 +86,13 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		JLabel lblFormas = new JLabel("Forma geométrica");
 		lblFormas.setForeground(TEXT);
-		lblFormas.setFont(new Font("Times New Roman", Font.BOLD, 15));
-		lblFormas.setBounds(10, 57, 124, 14);
+		lblFormas.setFont(Fontes.quantico(15f));
+		lblFormas.setBounds(10, 57, 156, 14);
 		panel.add(lblFormas);
  
 		JComboBox<String> formas = new JComboBox<>(shapes);
 		formas.setBounds(11, 80, 179, 22);
+
 		panel.add(formas);
 		formas.addActionListener(e -> {
 			int index = formas.getSelectedIndex();
@@ -103,7 +104,7 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		JLabel lbltransfLineares = new JLabel("Matriz de transformação");
 		lbltransfLineares.setForeground(TEXT);
-		lbltransfLineares.setFont(new Font("Times New Roman", Font.BOLD, 15));
+		lbltransfLineares.setFont(Fontes.quantico(15f));
 		lbltransfLineares.setBounds(10, 119, 180, 14);
 		panel.add(lbltransfLineares);
  
@@ -131,15 +132,19 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		JLabel lblMatriz = new JLabel("Matriz");
 		lblMatriz.setForeground(TEXT);
-		lblMatriz.setFont(new Font("Times New Roman", Font.BOLD, 15));
+		lblMatriz.setFont(Fontes.quantico(15f));
 		lblMatriz.setBounds(10, 171, 46, 14);
+		lblMatriz.setToolTipText("<html>Matriz de transformação aplicada em tempo real.<br>"
+				+ "Observe que esta matriz é multiplicada pela \"Matriz Acumulada\"<br>"
+				+ "sendo possível visualizar em tempo real a composição de transformações guardadas!<html>");
 		panel.add(lblMatriz);
  
 		lblDeterminante = new JLabel();
 		lblDeterminante.setForeground(TEXT);
-		lblDeterminante.setFont(new Font("Times New Roman", Font.BOLD, 13));
+		lblDeterminante.setFont(Fontes.quantico(13f));
 		lblDeterminante.setBounds(118, 171, 140, 14);
-		lblDeterminante.setToolTipText("<html> det = 0 -> transformação comprime o plano em uma reta ou ponto.<br>"
+		lblDeterminante.setToolTipText("<html> Valor do determinante da matriz de transformação atual!<br>"
+				+ "det = 0 -> transformação comprime o plano em uma reta ou ponto.<br>"
 				+ "A matriz não é invertível.<br>"
 				+ "det > 0 -> A orientação do sistema é preservada. A matriz é invertível.<br>"
 				+ "det < 0 -> Há inversão de orientação (reflexão). A matriz é invertível.<br><html>");
@@ -149,7 +154,7 @@ public class TransformUI extends JFrame implements TransformListener{
 		// vetores base transformados (i e j)
 		vetoresBase = new JLabel();
 		vetoresBase.setForeground(TEXT);
-		vetoresBase.setFont(new Font("Times New Roman", Font.PLAIN, 11));
+		vetoresBase.setFont(Fontes.quantico(11f));
 		vetoresBase.setBounds(116, 186, 140, 17);
 		vetoresBase.setToolTipText(
 				"Para onde vão os vetores da base (1,0) e (0,1) após a "
@@ -163,7 +168,7 @@ public class TransformUI extends JFrame implements TransformListener{
 		descricao.setEditable(false);
 		descricao.setLineWrap(true);
 		descricao.setWrapStyleWord(true);
-		descricao.setFont(new Font("Tahoma", Font.PLAIN, 11));
+		descricao.setFont(Fontes.quantico(11f));
 		descricao.setForeground(TEXT);
 		descricao.setBackground(PANEL_BG);
  
@@ -175,11 +180,12 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		lblAuxiliar = new JLabel("");
 		lblAuxiliar.setForeground(TEXT);
-		lblAuxiliar.setFont(new Font("Times New Roman", Font.BOLD, 15));
+		lblAuxiliar.setFont(Fontes.quantico(15f));
 		panelAuxiliar.add(lblAuxiliar);
  
 		// ------------ Botão reset (matriz atual) ----------------------------
 		JButton reset = new JButton("Resetar");
+		reset.setFont(Fontes.quantico(11f));
 		reset.setBounds(69, 541, 131, 39);
 		reset.addActionListener(e -> {
 			formas.setSelectedIndex(0);
@@ -200,7 +206,7 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		JLabel lblMatrizAcumulada = new JLabel("Matriz Acumulada");
 		lblMatrizAcumulada.setForeground(TEXT);
-		lblMatrizAcumulada.setFont(new Font("Times New Roman", Font.BOLD, 15));
+		lblMatrizAcumulada.setFont(Fontes.quantico(15f));
 		lblMatrizAcumulada.setBounds(31, 401, 135, 14);
 		lblMatrizAcumulada.setToolTipText(
 				"<html>Guarda o produto de todas as transformações aplicadas com<br>"
@@ -210,16 +216,19 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		JButton btnAplicar = new JButton("Aplicar");
 		btnAplicar.setBounds(158, 445, 89, 23);
-		btnAplicar.setToolTipText("Multiplica a matriz atual pela acumulada");
+		btnAplicar.setToolTipText("<html>Guarda a matriz de transformação atual<br>"
+				+ "e passa a compor as transformações realizadas em tempo real!");
 		btnAplicar.addActionListener(e -> controller.aplicarNaAcumulada());
-		btnAplicar.setBackground(BG);
+		btnAplicar.setBackground(MUTED);
+		btnAplicar.setFont(Fontes.quantico(11f));
 		panel.add(btnAplicar);
  
 		JButton btnResetarAcumulada = new JButton("Resetar");
 		btnResetarAcumulada.setBounds(159, 475, 89, 23);
 		btnResetarAcumulada.addActionListener(e -> controller.resetarAcumulada());
-		btnResetarAcumulada.setBackground(BG);
+		btnResetarAcumulada.setBackground(MUTED);
 		btnResetarAcumulada.setToolTipText("Restaura a matriz acumulada pera o estado inciial (identidade)!");
+		btnResetarAcumulada.setFont(Fontes.quantico(11f));
 		panel.add(btnResetarAcumulada);
  
 		// estado inicial da UI
@@ -307,8 +316,8 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		double[] i = matriz.getImagemVetorI();
 		double[] j = matriz.getImagemVetorJ();
-		vetoresBase.setText("i → (" + arredondar(i[0]) + ", " + arredondar(i[1])
-				+ ") j → (" + arredondar(j[0]) + ", " + arredondar(j[1]) + ")");
+		vetoresBase.setText("Î=(" + arredondar(i[0]) + ", " + arredondar(i[1])
+				+ ") j=(" + arredondar(j[0]) + ", " + arredondar(j[1]) + ")");
 	}
  
 	@Override

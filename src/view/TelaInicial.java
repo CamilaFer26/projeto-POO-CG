@@ -65,7 +65,7 @@ public class TelaInicial extends JFrame {
 		titulo.setAlignmentX(0.5f);
 
 		JLabel subtitulo = new JLabel("Visualizador educacional — POO + Computação Gráfica");
-		subtitulo.setFont(Fontes.quantico_bold(20f));
+		subtitulo.setFont(Fontes.quantico_bold(15f));
 		subtitulo.setForeground(TEXT);
 		subtitulo.setAlignmentX(0.5f);
 
