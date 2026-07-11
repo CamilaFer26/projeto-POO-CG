@@ -18,6 +18,8 @@ import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
+import util.Fontes;
+
 /**
  * Janela de entrada exibida ao abrir a aplicação, antes do visualizador
  * principal. Mostra o título do projeto, um resumo do que ele faz e um
@@ -32,11 +34,11 @@ public class TelaInicial extends JFrame {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Color BG = new Color(166, 188, 201);
-	private static final Color PANEL_BG = new Color(61, 21, 52);
-	private static final Color TEXT = new Color(246, 224, 182);
-	private static final Color MUTED = new Color(255, 244, 235);
-	private static final Color ACCENT = new Color(62, 75, 142);
+	private static final Color BG = new Color(156, 140, 185);
+	private static final Color PANEL_BG = new Color(75, 31, 111);
+	private static final Color TEXT = new Color(241, 237, 247);
+	private static final Color MUTED = new Color(198, 182, 221);
+	private static final Color ACCENT = new Color(42, 18, 63);
 
 	public TelaInicial(Runnable aoIniciar) {
 		setTitle("Visualizador de Transformações Lineares");
@@ -58,19 +60,19 @@ public class TelaInicial extends JFrame {
 		centro.setBorder(new EmptyBorder(48, 48, 24, 48));
 
 		JLabel titulo = new JLabel("Transformações Lineares");
-		titulo.setFont(new Font("Segoe UI", Font.BOLD, 26));
+		titulo.setFont(Fontes.quantico_boldItalic(25f));
 		titulo.setForeground(TEXT);
 		titulo.setAlignmentX(0.5f);
 
 		JLabel subtitulo = new JLabel("Visualizador educacional — POO + Computação Gráfica");
-		subtitulo.setFont(new Font("Segoe UI", Font.BOLD, 13));
+		subtitulo.setFont(Fontes.quantico_bold(20f));
 		subtitulo.setForeground(TEXT);
 		subtitulo.setAlignmentX(0.5f);
 
 		JTextArea resumo = new JTextArea(
-				"      Explore rotação, escala, reflexão e cisalhamento ");
+				"          Explore rotação, escala, reflexão e cisalhamento");
 		resumo.setTabSize(3);
-		resumo.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+		resumo.setFont(Fontes.quantico_italic(15f));
 		resumo.setForeground(MUTED);
 		resumo.setBackground(PANEL_BG);
 		resumo.setLineWrap(true);
@@ -82,8 +84,8 @@ public class TelaInicial extends JFrame {
 		resumo.setBorder(new EmptyBorder(16, 0, 24, 0));
 
 		JButton iniciar = new JButton("Iniciar visualizador");
-		iniciar.setFont(new Font("Segoe UI", Font.BOLD, 14));
-		iniciar.setForeground(PANEL_BG);
+		iniciar.setFont(Fontes.quantico(14f));
+		iniciar.setForeground(TEXT);
 		iniciar.setBackground(BG);
 		iniciar.setFocusPainted(false);
 		iniciar.setBorder(new EmptyBorder(12, 24, 12, 24));
@@ -96,8 +98,8 @@ public class TelaInicial extends JFrame {
 		});
 
 		JButton sobre = new JButton("Sobre o projeto");
-		sobre.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-		sobre.setForeground(new Color(255, 255, 255));
+		sobre.setFont(Fontes.quantico_italic(15f));
+		sobre.setForeground(TEXT);
 		sobre.setBackground(BG);
 		sobre.setBorder(BorderFactory.createEmptyBorder(10, 24, 0, 24));
 		sobre.setFocusPainted(false);
@@ -125,7 +127,7 @@ public class TelaInicial extends JFrame {
 				"Projeto interdisciplinar — Programação Orientada a Objetos & Computação Gráfica",
 				SwingConstants.CENTER);
 		creditos.setBackground(MUTED);
-		creditos.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+		creditos.setFont(Fontes.quantico(12f));
 		creditos.setForeground(ACCENT);
 
 		rodape.add(creditos);
@@ -150,7 +152,7 @@ public class TelaInicial extends JFrame {
 				+ "integração via JNI.\n\n"
 				+ "Equipe POO: Camila Fernada, Erick Batista, Lara Pereira\n"
 				+ "Equipe CG: Hemilly Uchoa, Mikael Gomes\n");
-		texto.setFont(new Font("Segoe UI Bold", Font.PLAIN, 13));
+		texto.setFont(Fontes.quantico(13f));
 		texto.setForeground(PANEL_BG);
 		texto.setBackground(TEXT);
 		texto.setLineWrap(true);
@@ -160,6 +162,10 @@ public class TelaInicial extends JFrame {
 		texto.setBorder(new EmptyBorder(20, 20, 20, 20));
 
 		JButton fechar = new JButton("Fechar");
+		fechar.setForeground(TEXT);
+		fechar.setBackground(BG);
+		fechar.setFocusPainted(false);
+		fechar.setBorder(new EmptyBorder(12, 24, 12, 24));
 		fechar.addActionListener(e -> dialog.dispose());
 		JPanel rodapeDialog = new JPanel();
 		rodapeDialog.setBackground(new Color(255, 255, 255));

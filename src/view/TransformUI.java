@@ -5,7 +5,11 @@ import controller.TransformController;
 import controller.TransformListener;
 import graphics.MotorGrafico;
 import model.*;
+import util.Fontes;
+
 import java.awt.*;
+import java.io.IOException;
+import java.io.InputStream;
 
 // View principal. Responsabilidades: montar os
 // componentes Swing e traduzir eventos de UI em chamadas ao
@@ -15,7 +19,6 @@ public class TransformUI extends JFrame implements TransformListener{
 	private final TransformController controller;
 	private Canvas glCanvas;
 	private String[] shapes = {
-			"Escolha uma opção",
 			"Quadrado",
 			"Triângulo",
 			"Circulo",
@@ -46,18 +49,18 @@ public class TransformUI extends JFrame implements TransformListener{
 	private MatrizPanel matrizPanel;
 	private MatrizPanel acumuladaPanel;
 	
-	private static final Color BG = new Color(166, 188, 201);
-	private static final Color PANEL_BG = new Color(61, 21, 52);
-	private static final Color TEXT = new Color(246, 224, 182);
-	private static final Color MUTED = new Color(255, 244, 235);
-	private static final Color ACCENT = new Color(62, 75, 142);
+	private static final Color BG = new Color(156, 140, 185);
+	private static final Color PANEL_BG = new Color(75, 31, 111);
+	private static final Color TEXT = new Color(241, 237, 247);
+	private static final Color MUTED = new Color(198, 182, 221);
+	private static final Color ACCENT = new Color(42, 18, 63);
 	
 	public TransformUI(MotorGrafico motor) {
 		this.controller = new TransformController(motor);
 		this.controller.setListener(this);
- 
+		ToolTipManager.sharedInstance().setDismissDelay(30000);
 		getContentPane().setBackground(BG);
- 
+
 		// ------------ Canvas para o OpenGL ------------------------
 		glCanvas = new Canvas();
 		glCanvas.setBounds(10, 10, 750, 590);
@@ -67,7 +70,7 @@ public class TransformUI extends JFrame implements TransformListener{
 		setResizable(false);
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
 		getContentPane().setLayout(null);
- 
+		setLocationRelativeTo(null);
 		// ------------ Painel de opções/ferramentas ----------------
 		Panel panel = new Panel();
 		panel.setBackground(PANEL_BG);
@@ -77,7 +80,7 @@ public class TransformUI extends JFrame implements TransformListener{
  
 		JLabel lbl1 = new JLabel(" Transformações Lineares");
 		lbl1.setForeground(TEXT);
-		lbl1.setFont(new Font("Times New Roman", Font.BOLD, 22));
+		lbl1.setFont(Fontes.quantico_bold(21f));
 		lbl1.setBounds(0, 0, 258, 46);
 		panel.add(lbl1);
  
@@ -96,6 +99,7 @@ public class TransformUI extends JFrame implements TransformListener{
 				controller.selecionarForma(index - 1);
 			}
 		});
+		formas.setToolTipText("Explore objetos geométricos para transformação!");
  
 		JLabel lbltransfLineares = new JLabel("Matriz de transformação");
 		lbltransfLineares.setForeground(TEXT);
@@ -115,6 +119,7 @@ public class TransformUI extends JFrame implements TransformListener{
 				return super.getListCellRendererComponent(list, texto, index, isSelected, cellHasFocus);
 			}
 		});
+		transforms.setToolTipText("Explore transformações lineares!");
 		panel.add(transforms);
 		transforms.addActionListener(e -> configurarControles());
  
@@ -138,7 +143,7 @@ public class TransformUI extends JFrame implements TransformListener{
 				+ "A matriz não é invertível.<br>"
 				+ "det > 0 -> A orientação do sistema é preservada. A matriz é invertível.<br>"
 				+ "det < 0 -> Há inversão de orientação (reflexão). A matriz é invertível.<br><html>");
-		
+				
 		panel.add(lblDeterminante);
  
 		// vetores base transformados (i e j)
@@ -184,6 +189,7 @@ public class TransformUI extends JFrame implements TransformListener{
 			panelAuxiliar.add(lblAuxiliar);
 		});
 		reset.setBackground(TEXT);
+		reset.setToolTipText("Restaura a matriz atual para o estado inicial (identidade)!");
 		panel.add(reset);
  
 		// --------- Painel: matriz acumulada ---------------------
@@ -197,9 +203,9 @@ public class TransformUI extends JFrame implements TransformListener{
 		lblMatrizAcumulada.setFont(new Font("Times New Roman", Font.BOLD, 15));
 		lblMatrizAcumulada.setBounds(31, 401, 135, 14);
 		lblMatrizAcumulada.setToolTipText(
-				"Guarda o produto de todas as transformações aplicadas com "
-						+ "\"Aplicar\", na ordem em que foram aplicadas — assim "
-						+ "dá pra compor várias transformações em sequência.");
+				"<html>Guarda o produto de todas as transformações aplicadas com<br>"
+						+ "\"Aplicar\", na ordem em que foram aplicadas — assim<br>"
+						+ "dá pra compor várias transformações em sequência.<html>");
 		panel.add(lblMatrizAcumulada);
  
 		JButton btnAplicar = new JButton("Aplicar");
@@ -213,6 +219,7 @@ public class TransformUI extends JFrame implements TransformListener{
 		btnResetarAcumulada.setBounds(159, 475, 89, 23);
 		btnResetarAcumulada.addActionListener(e -> controller.resetarAcumulada());
 		btnResetarAcumulada.setBackground(BG);
+		btnResetarAcumulada.setToolTipText("Restaura a matriz acumulada pera o estado inciial (identidade)!");
 		panel.add(btnResetarAcumulada);
  
 		// estado inicial da UI

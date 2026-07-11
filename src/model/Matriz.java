@@ -66,10 +66,10 @@ public class Matriz {
 	// retorna a matriz como objeto para tabelas
     public Object[][] getObjeto() {
         Object[][] dados = new Object[2][2];
-
+        
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 2; j++) {
-                dados[i][j] = valores[i][j];
+                dados[i][j] = Math.round(valores[i][j] * 100.00)/100.00;
             }
         }
 

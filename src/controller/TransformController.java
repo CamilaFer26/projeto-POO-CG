@@ -71,13 +71,13 @@ public class TransformController {
 	}
  
 	private void sincronizarMotor() {
-		float[][] m = matrizAtual.toFloat();
+		float[][] m = matrizAtual.multiplicar(acumulada).toFloat();
 		motor.update(m[0][0], m[0][1], m[1][0], m[1][1]);
 	}
  
 	private void notificarMatriz() {
 		if (listener != null) {
-			listener.onMatrizAtualizada(matrizAtual);
+			listener.onMatrizAtualizada(matrizAtual.multiplicar(acumulada));
 		}
 	}
  
