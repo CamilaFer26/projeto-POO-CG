@@ -97,7 +97,7 @@ public class TransformUI extends JFrame implements TransformListener{
 		formas.addActionListener(e -> {
 			int index = formas.getSelectedIndex();
 			if (index > 0) {
-				controller.selecionarForma(index - 1);
+				controller.selecionarForma(index);
 			}
 		});
 		formas.setToolTipText("Explore objetos geométricos para transformação!");
